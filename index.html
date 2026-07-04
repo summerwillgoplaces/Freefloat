@@ -68,10 +68,37 @@
   .stat .val.g{color:var(--green)} .stat .val.y{color:var(--gold)}
 
   /* ---------- Scanner ---------- */
-  main{padding:18px 22px;max-width:1280px;margin:0 auto}
+  main{padding:18px 22px;max-width:1560px;margin:0 auto}
+  .layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px;align-items:start}
+  @media (max-width:1080px){.layout{grid-template-columns:1fr}}
   .panel{
     background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;
   }
+
+  /* ---------- Live news feed ---------- */
+  .feed{max-height:78vh;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .feed-item{
+    display:block;padding:11px 14px;border-bottom:1px solid #16223a;text-decoration:none;
+    transition:background .15s;
+  }
+  .feed-item:hover{background:#152138}
+  .feed-item.breaking{border-left:3px solid var(--gold);background:linear-gradient(90deg,#2b241022,transparent)}
+  .feed-top{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+  .tick{
+    font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.5px;
+    padding:2px 7px;border-radius:4px;background:var(--green-dim);color:var(--green);border:1px solid #1c5c36;
+  }
+  .feed-when{font-family:var(--mono);font-size:10px;color:var(--muted)}
+  .feed-when.fresh{color:var(--gold);font-weight:700}
+  .feed-pub{font-size:9.5px;color:var(--muted);margin-left:auto;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .feed-title{color:var(--text);font-size:12.5px;line-height:1.45;display:block}
+  .feed-item:hover .feed-title{color:var(--blue)}
+  .feed-empty{padding:28px 16px;text-align:center;color:var(--muted);font-size:12.5px;line-height:1.6}
+  .live-tag{
+    display:inline-flex;align-items:center;gap:6px;font-size:10px;letter-spacing:1px;
+    color:var(--red);font-weight:700;
+  }
+  .live-tag .dot{background:var(--red);box-shadow:0 0 8px var(--red);animation:pulse 1.2s infinite}
   .panel-head{
     display:flex;justify-content:space-between;align-items:center;gap:10px;
     padding:12px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap;
@@ -197,6 +224,7 @@
 </div>
 
 <main>
+  <div class="layout">
   <div class="panel">
     <div class="panel-head">
       <h2><b>Momentum scan</b> — biggest % gainers on the live market</h2>
@@ -251,6 +279,17 @@
       <div class="msg" id="msg"><div class="spin"></div>Scanning the market for spiking stocks…</div>
     </div>
   </div>
+
+  <aside class="panel">
+    <div class="panel-head">
+      <h2><b>Spiker News</b> feed</h2>
+      <span class="live-tag"><span class="dot"></span>LIVE</span>
+    </div>
+    <div class="feed" id="feed">
+      <div class="feed-empty">Headlines from today's spiking tickers will stream in here after the first scan…</div>
+    </div>
+  </aside>
+  </div>
 </main>
 
 <footer>
@@ -270,21 +309,28 @@
   const SCREENER = 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=false&scrIds=day_gainers&count=30';
   const QUOTE = syms => 'https://query1.finance.yahoo.com/v7/finance/quote?symbols=' + syms.join(',');
   const SUMMARY = s => `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${s}?modules=defaultKeyStatistics`;
-  const NEWS = s => `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(s)}&newsCount=1&quotesCount=0`;
+  const NEWS = s => `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(s)}&newsCount=5&quotesCount=0`;
   const NEWS_TTL = 5 * 60 * 1000; // re-check headlines every 5 min per symbol
-  const newsCache = {}; // symbol -> {title, link, time, fetchedAt}
+  const newsCache = {}; // symbol -> {items:[{title,link,time,pub}], title, link, time, fetchedAt}
 
   async function getNews(sym) {
     const c = newsCache[sym];
     if (c && Date.now() - c.fetchedAt < NEWS_TTL) return c;
     try {
       const j = await fetchJSON(NEWS(sym), 2);
-      const n = j?.news?.[0];
-      return (newsCache[sym] = n
-        ? {title: n.title, link: n.link, time: (n.providerPublishTime || 0) * 1000, fetchedAt: Date.now()}
-        : {title: null, link: null, time: 0, fetchedAt: Date.now()});
+      const items = (j?.news || []).map(n => ({
+        title: n.title, link: n.link,
+        time: (n.providerPublishTime || 0) * 1000,
+        pub: n.publisher || '',
+      })).filter(n => n.title);
+      const first = items[0] || {};
+      return (newsCache[sym] = {
+        items,
+        title: first.title || null, link: first.link || null, time: first.time || 0,
+        fetchedAt: Date.now(),
+      });
     } catch (e) {
-      return (newsCache[sym] = {title: null, link: null, time: 0, fetchedAt: Date.now() - NEWS_TTL + 60000});
+      return (newsCache[sym] = {items: [], title: null, link: null, time: 0, fetchedAt: Date.now() - NEWS_TTL + 60000});
     }
   }
 
@@ -389,6 +435,7 @@
 
       data = enriched;
       render();
+      renderFeed();
       $('lastScan').textContent = new Date().toLocaleTimeString();
       setStatus('live', 'Live');
     } catch (e) {
@@ -467,6 +514,44 @@
     msgEl.style.display = 'none';
     tbl.style.display = '';
     updateStats(visible);
+  }
+
+  function renderFeed() {
+    const feedEl = $('feed');
+    const syms = new Set(data.map(d => d.symbol));
+    const seen = new Set();
+    const items = [];
+    for (const sym of syms) {
+      const c = newsCache[sym];
+      if (!c || !c.items) continue;
+      for (const n of c.items) {
+        const key = (n.title || '').toLowerCase().slice(0, 80);
+        if (!key || seen.has(key)) continue; // dedupe cross-ticker duplicates
+        seen.add(key);
+        items.push({...n, symbol: sym});
+      }
+    }
+    items.sort((a, b) => (b.time || 0) - (a.time || 0));
+    const top = items.slice(0, 40);
+
+    if (!top.length) {
+      feedEl.innerHTML = '<div class="feed-empty">No headlines yet for the current spikers — they\u2019ll appear here as soon as the news endpoints respond.</div>';
+      return;
+    }
+
+    feedEl.innerHTML = top.map(n => {
+      const age = Date.now() - (n.time || 0);
+      const breaking = n.time && age < 15 * 60000;
+      const fresh = n.time && age < 3600000;
+      return `<a class="feed-item${breaking ? ' breaking' : ''}" href="${n.link}" target="_blank" rel="noopener">
+        <div class="feed-top">
+          <span class="tick">${n.symbol}</span>
+          <span class="feed-when${fresh ? ' fresh' : ''}">${breaking ? '🔥 ' : ''}${newsAge(n.time)}</span>
+          <span class="feed-pub">${n.pub}</span>
+        </div>
+        <span class="feed-title">${n.title}</span>
+      </a>`;
+    }).join('');
   }
 
   function updateStats(list) {
