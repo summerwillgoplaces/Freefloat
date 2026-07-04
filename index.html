@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Float Scanner — Live Market Spikers</title>
+<style>
+  :root{
+    --bg:#0b1220;
+    --panel:#111a2c;
+    --panel-2:#0e1626;
+    --line:#1d2a42;
+    --text:#dbe4f3;
+    --muted:#7d8ba3;
+    --green:#22c55e;
+    --green-dim:#123524;
+    --red:#ef4444;
+    --red-dim:#3a1620;
+    --gold:#f5b942;
+    --blue:#3b82f6;
+    --mono:'Roboto Mono','SF Mono',Consolas,monospace;
+    --sans:'Segoe UI',system-ui,-apple-system,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh}
+
+  /* ---------- Top bar ---------- */
+  header{
+    display:flex;align-items:center;justify-content:space-between;gap:16px;
+    padding:14px 22px;border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,#101a2e,#0c1424);
+    flex-wrap:wrap;
+  }
+  .brand{display:flex;align-items:center;gap:12px}
+  .bolt{
+    width:38px;height:38px;border-radius:8px;display:grid;place-items:center;
+    background:linear-gradient(135deg,#16a34a,#065f46);font-size:20px;
+    box-shadow:0 0 18px rgba(34,197,94,.35);
+  }
+  .brand h1{font-size:18px;font-weight:700;letter-spacing:.5px}
+  .brand h1 span{color:var(--green)}
+  .brand small{display:block;color:var(--muted);font-size:11px;font-weight:400;letter-spacing:1.5px;text-transform:uppercase}
+  .controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .pill{
+    font-family:var(--mono);font-size:12px;padding:6px 12px;border-radius:999px;
+    border:1px solid var(--line);background:var(--panel-2);color:var(--muted);
+    display:flex;align-items:center;gap:7px;
+  }
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+  .dot.live{background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 1.6s infinite}
+  .dot.err{background:var(--red)}
+  @keyframes pulse{50%{opacity:.35}}
+  select,button.btn{
+    background:var(--panel-2);color:var(--text);border:1px solid var(--line);
+    border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer;font-family:var(--sans);
+  }
+  button.btn:hover{border-color:var(--green);color:var(--green)}
+  button.btn:focus-visible,select:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+
+  /* ---------- Stat strip ---------- */
+  .strip{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+    gap:1px;background:var(--line);border-bottom:1px solid var(--line);
+  }
+  .stat{background:var(--panel-2);padding:12px 20px}
+  .stat .lbl{font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted)}
+  .stat .val{font-family:var(--mono);font-size:20px;font-weight:700;margin-top:3px}
+  .stat .val.g{color:var(--green)} .stat .val.y{color:var(--gold)}
+
+  /* ---------- Scanner ---------- */
+  main{padding:18px 22px;max-width:1280px;margin:0 auto}
+  .panel{
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;
+  }
+  .panel-head{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:12px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap;
+  }
+  .panel-head h2{font-size:14px;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+  .panel-head h2 b{color:var(--text)}
+  .legend{display:flex;gap:12px;font-size:11px;color:var(--muted);flex-wrap:wrap}
+  .chip{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:middle}
+
+  .tbl-wrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:13px}
+  thead th{
+    text-align:right;padding:9px 14px;font-size:10.5px;letter-spacing:1.2px;text-transform:uppercase;
+    color:var(--muted);border-bottom:1px solid var(--line);cursor:pointer;user-select:none;white-space:nowrap;
+    background:var(--panel-2);position:sticky;top:0;
+  }
+  thead th:first-child,tbody td:first-child{text-align:left}
+  thead th:hover{color:var(--text)}
+  thead th .arrow{font-size:9px;margin-left:3px}
+  tbody td{padding:10px 14px;text-align:right;border-bottom:1px solid #16223a;white-space:nowrap}
+  tbody tr{transition:background .15s}
+  tbody tr:hover{background:#152138}
+  tbody tr.flash-up{animation:flashUp 1s}
+  @keyframes flashUp{0%{background:var(--green-dim)}100%{background:transparent}}
+  .sym{font-weight:700;color:#fff;font-size:14px}
+  .name{display:block;color:var(--muted);font-size:10px;font-family:var(--sans);max-width:170px;overflow:hidden;text-overflow:ellipsis}
+  .up{color:var(--green);font-weight:700}
+  .dn{color:var(--red);font-weight:700}
+  .badge{
+    display:inline-block;padding:3px 9px;border-radius:5px;font-size:11px;font-weight:700;letter-spacing:.5px;
+  }
+  .b-low{background:var(--green-dim);color:var(--green);border:1px solid #1c5c36}
+  .b-med{background:#2b2410;color:var(--gold);border:1px solid #5c4a1c}
+  .b-high{background:#231a2e;color:#a78bfa;border:1px solid #45356b}
+  .b-na{background:#1a2233;color:var(--muted);border:1px solid var(--line)}
+  .bar{
+    height:4px;border-radius:2px;background:#1a2740;margin-top:5px;overflow:hidden;min-width:80px;
+  }
+  .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--green),#86efac)}
+
+  /* ---------- Filter bar ---------- */
+  .filters{
+    display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;
+    padding:12px 16px;border-bottom:1px solid var(--line);background:var(--panel-2);
+  }
+  .f-group{display:flex;flex-direction:column;gap:4px}
+  .f-group label{font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted)}
+  .f-row{display:flex;align-items:center;gap:6px}
+  .f-row span{color:var(--muted);font-size:12px}
+  .filters input{
+    width:86px;background:var(--bg);color:var(--text);border:1px solid var(--line);
+    border-radius:7px;padding:7px 9px;font-family:var(--mono);font-size:13px;
+  }
+  .filters input:focus-visible{outline:2px solid var(--green);outline-offset:1px;border-color:var(--green)}
+  .f-toggle{
+    display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text);cursor:pointer;
+    padding:8px 12px;border:1px solid var(--line);border-radius:7px;background:var(--bg);user-select:none;
+  }
+  .f-toggle input{width:auto;accent-color:var(--green)}
+  .f-toggle.on{border-color:var(--green);color:var(--green)}
+  button.btn.ghost{color:var(--muted);border-style:dashed}
+  .f-count{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .f-count b{color:var(--green)}
+
+  /* ---------- News column ---------- */
+  .news{max-width:230px;white-space:normal!important;font-family:var(--sans)}
+  .news a{
+    color:var(--text);text-decoration:none;font-size:11.5px;line-height:1.45;display:block;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  }
+  .news a:hover{color:var(--blue);text-decoration:underline}
+  .news .when{font-family:var(--mono);font-size:9.5px;color:var(--muted);margin-top:3px}
+  .news .when.fresh{color:var(--gold)}
+  .news .none{color:var(--muted);font-size:11px}
+
+  .msg{padding:34px 20px;text-align:center;color:var(--muted);font-size:14px;line-height:1.7}
+  .msg b{color:var(--text)}
+  .msg .spin{
+    width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--green);
+    border-radius:50%;margin:0 auto 14px;animation:rot .8s linear infinite;
+  }
+  @keyframes rot{to{transform:rotate(360deg)}}
+
+  footer{padding:16px 22px 30px;max-width:1280px;margin:0 auto;color:var(--muted);font-size:11.5px;line-height:1.7}
+  footer b{color:var(--text)}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+  @media (max-width:640px){
+    header{padding:12px 14px} main{padding:12px 10px}
+    .stat .val{font-size:16px}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="bolt">⚡</div>
+    <div>
+      <h1>FLOAT<span>SCANNER</span></h1>
+      <small>Live momentum · low float spikers</small>
+    </div>
+  </div>
+  <div class="controls">
+    <div class="pill"><span class="dot" id="statusDot"></span><span id="statusTxt">Connecting…</span></div>
+    <div class="pill">Last scan <span id="lastScan" style="color:var(--text)">—</span></div>
+    <label class="pill" style="gap:8px">Refresh
+      <select id="interval" aria-label="Refresh interval" style="border:none;background:transparent;color:var(--text);padding:0">
+        <option value="30000">30s</option>
+        <option value="60000" selected>60s</option>
+        <option value="120000">2m</option>
+        <option value="0">Off</option>
+      </select>
+    </label>
+    <button class="btn" id="refreshBtn">↻ Scan now</button>
+  </div>
+</header>
+
+<div class="strip">
+  <div class="stat"><div class="lbl">Spikers found</div><div class="val" id="stCount">—</div></div>
+  <div class="stat"><div class="lbl">Low float (&lt;20M)</div><div class="val g" id="stLow">—</div></div>
+  <div class="stat"><div class="lbl">Top gainer</div><div class="val g" id="stTop">—</div></div>
+  <div class="stat"><div class="lbl">Avg move</div><div class="val y" id="stAvg">—</div></div>
+</div>
+
+<main>
+  <div class="panel">
+    <div class="panel-head">
+      <h2><b>Momentum scan</b> — biggest % gainers on the live market</h2>
+      <div class="legend">
+        <span><i class="chip" style="background:var(--green)"></i>Low float &lt; 20M</span>
+        <span><i class="chip" style="background:var(--gold)"></i>Mid 20–100M</span>
+        <span><i class="chip" style="background:#a78bfa"></i>High &gt; 100M</span>
+      </div>
+    </div>
+    <div class="filters">
+      <div class="f-group">
+        <label for="fMinPrice">Price range ($)</label>
+        <div class="f-row">
+          <input type="number" id="fMinPrice" min="0" step="0.5" placeholder="Min" aria-label="Minimum price">
+          <span>–</span>
+          <input type="number" id="fMaxPrice" min="0" step="0.5" placeholder="Max" aria-label="Maximum price">
+        </div>
+      </div>
+      <div class="f-group">
+        <label for="fMinRvol">Min RVOL (x)</label>
+        <input type="number" id="fMinRvol" min="0" step="0.5" placeholder="e.g. 2">
+      </div>
+      <div class="f-group">
+        <label for="fMinVol">Min volume</label>
+        <input type="number" id="fMinVol" min="0" step="100000" placeholder="e.g. 500000">
+      </div>
+      <label class="f-toggle" id="fLowWrap">
+        <input type="checkbox" id="fLowFloat"> Low float only (&lt;20M)
+      </label>
+      <button class="btn ghost" id="fClear">Clear filters</button>
+      <div class="f-count">Showing <b id="fShown">0</b> / <span id="fTotal">0</span></div>
+    </div>
+    <div class="tbl-wrap">
+      <table id="tbl" style="display:none">
+        <thead>
+          <tr>
+            <th data-k="symbol">Symbol</th>
+            <th data-k="price">Price</th>
+            <th data-k="changePct">% Chg <span class="arrow" id="a-changePct">▼</span></th>
+            <th data-k="change">$ Chg</th>
+            <th data-k="volume">Volume</th>
+            <th data-k="avgVol">Avg Vol (3M)</th>
+            <th data-k="relVol">RVOL</th>
+            <th data-k="float">Float</th>
+            <th data-k="floatRot">Float Rotation</th>
+            <th data-k="mcap">Mkt Cap</th>
+            <th data-k="newsTime" style="text-align:left">Latest News</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <div class="msg" id="msg"><div class="spin"></div>Scanning the market for spiking stocks…</div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <b>How this works:</b> data comes from Yahoo Finance's free public endpoints (day-gainers screener + quote data), routed through free public CORS proxies so it runs straight in your browser — no API key, no signup, no cost. <b>Float</b> = free-float shares available to trade; when it isn't published, shares outstanding is shown and marked <b>SO</b>. <b>Float rotation</b> = today's volume ÷ float (how many times the float has traded). Free proxies can occasionally rate-limit; the app auto-rotates between several. Data is delayed/unofficial — for information only, not trading advice.
+</footer>
+
+<script>
+(() => {
+  // ---------- Free CORS proxies (rotated on failure) ----------
+  const PROXIES = [
+    u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+    u => 'https://corsproxy.io/?url=' + encodeURIComponent(u),
+    u => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u),
+  ];
+  let proxyIdx = 0;
+
+  const SCREENER = 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=false&scrIds=day_gainers&count=30';
+  const QUOTE = syms => 'https://query1.finance.yahoo.com/v7/finance/quote?symbols=' + syms.join(',');
+  const SUMMARY = s => `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${s}?modules=defaultKeyStatistics`;
+  const NEWS = s => `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(s)}&newsCount=1&quotesCount=0`;
+  const NEWS_TTL = 5 * 60 * 1000; // re-check headlines every 5 min per symbol
+  const newsCache = {}; // symbol -> {title, link, time, fetchedAt}
+
+  async function getNews(sym) {
+    const c = newsCache[sym];
+    if (c && Date.now() - c.fetchedAt < NEWS_TTL) return c;
+    try {
+      const j = await fetchJSON(NEWS(sym), 2);
+      const n = j?.news?.[0];
+      return (newsCache[sym] = n
+        ? {title: n.title, link: n.link, time: (n.providerPublishTime || 0) * 1000, fetchedAt: Date.now()}
+        : {title: null, link: null, time: 0, fetchedAt: Date.now()});
+    } catch (e) {
+      return (newsCache[sym] = {title: null, link: null, time: 0, fetchedAt: Date.now() - NEWS_TTL + 60000});
+    }
+  }
+
+  function newsAge(t) {
+    if (!t) return '';
+    const m = Math.floor((Date.now() - t) / 60000);
+    if (m < 1) return 'now';
+    if (m < 60) return m + 'm ago';
+    const h = Math.floor(m / 60);
+    if (h < 24) return h + 'h ago';
+    return Math.floor(h / 24) + 'd ago';
+  }
+
+  const $ = id => document.getElementById(id);
+  const rowsEl = $('rows'), msgEl = $('msg'), tbl = $('tbl');
+  let data = [], sortKey = 'changePct', sortDir = -1, timer = null, prevPct = {};
+  const floatCache = {}; // symbol -> {float, isSO}
+
+  async function fetchJSON(url, tries = PROXIES.length) {
+    for (let i = 0; i < tries; i++) {
+      const make = PROXIES[(proxyIdx + i) % PROXIES.length];
+      try {
+        const r = await fetch(make(url), {cache:'no-store'});
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const j = await r.json();
+        proxyIdx = (proxyIdx + i) % PROXIES.length; // stick with working proxy
+        return j;
+      } catch (e) { /* try next proxy */ }
+    }
+    throw new Error('All proxies failed');
+  }
+
+  function fmtNum(n) {
+    if (n == null || isNaN(n)) return '—';
+    if (n >= 1e9) return (n/1e9).toFixed(2) + 'B';
+    if (n >= 1e6) return (n/1e6).toFixed(2) + 'M';
+    if (n >= 1e3) return (n/1e3).toFixed(1) + 'K';
+    return String(Math.round(n));
+  }
+  const fmt$ = n => n == null || isNaN(n) ? '—' : '$' + n.toFixed(2);
+
+  function floatBadge(f, isSO) {
+    if (f == null) return '<span class="badge b-na">N/A</span>';
+    const tag = isSO ? ' <span style="color:var(--muted);font-size:9px">SO</span>' : '';
+    if (f < 20e6)  return `<span class="badge b-low">${fmtNum(f)}</span>${tag}`;
+    if (f < 100e6) return `<span class="badge b-med">${fmtNum(f)}</span>${tag}`;
+    return `<span class="badge b-high">${fmtNum(f)}</span>${tag}`;
+  }
+
+  async function getFloat(sym, sharesOutstanding) {
+    if (floatCache[sym]) return floatCache[sym];
+    try {
+      const j = await fetchJSON(SUMMARY(sym), 2);
+      const ks = j?.quoteSummary?.result?.[0]?.defaultKeyStatistics;
+      const f = ks?.floatShares?.raw ?? ks?.floatShares;
+      if (f) return (floatCache[sym] = {float: f, isSO: false});
+    } catch (e) { /* fall through */ }
+    if (sharesOutstanding) return (floatCache[sym] = {float: sharesOutstanding, isSO: true});
+    return (floatCache[sym] = {float: null, isSO: false});
+  }
+
+  async function scan() {
+    setStatus('live', 'Scanning…');
+    try {
+      // 1) get today's biggest gainers
+      const scr = await fetchJSON(SCREENER);
+      let quotes = scr?.finance?.result?.[0]?.quotes || [];
+
+      // 2) if screener gave slim objects, enrich via quote endpoint
+      if (quotes.length && quotes[0].regularMarketPrice == null) {
+        const syms = quotes.map(q => q.symbol).slice(0, 30);
+        const qj = await fetchJSON(QUOTE(syms));
+        quotes = qj?.quoteResponse?.result || quotes;
+      }
+
+      quotes = quotes
+        .filter(q => (q.regularMarketChangePercent ?? 0) > 0)
+        .slice(0, 25);
+
+      // 3) resolve float for each (cached; a few at a time)
+      const enriched = [];
+      for (const q of quotes) {
+        const fl = await getFloat(q.symbol, q.sharesOutstanding);
+        const nw = await getNews(q.symbol);
+        const vol = q.regularMarketVolume ?? null;
+        const avg = q.averageDailyVolume3Month ?? null;
+        enriched.push({
+          symbol: q.symbol,
+          name: q.shortName || q.longName || '',
+          price: q.regularMarketPrice ?? null,
+          change: q.regularMarketChange ?? null,
+          changePct: q.regularMarketChangePercent ?? null,
+          volume: vol,
+          avgVol: avg,
+          relVol: vol && avg ? vol/avg : null,
+          float: fl.float, isSO: fl.isSO,
+          floatRot: vol && fl.float ? vol/fl.float : null,
+          mcap: q.marketCap ?? null,
+          newsTitle: nw.title, newsLink: nw.link, newsTime: nw.time || null,
+        });
+      }
+
+      data = enriched;
+      render();
+      $('lastScan').textContent = new Date().toLocaleTimeString();
+      setStatus('live', 'Live');
+    } catch (e) {
+      console.error(e);
+      if (!data.length) {
+        msgEl.innerHTML = '<b>Couldn\u2019t reach the free data proxies right now.</b><br>Free public proxies occasionally rate-limit. Wait ~30 seconds and hit \u201cScan now\u201d \u2014 the app rotates between three different proxies automatically.';
+        msgEl.style.display = '';
+        tbl.style.display = 'none';
+      }
+      setStatus('err', 'Retrying next cycle');
+    }
+  }
+
+  function getFilters() {
+    const v = id => { const x = parseFloat($(id).value); return isNaN(x) ? null : x; };
+    return {
+      minP: v('fMinPrice'), maxP: v('fMaxPrice'),
+      minR: v('fMinRvol'), minV: v('fMinVol'),
+      lowOnly: $('fLowFloat').checked,
+    };
+  }
+
+  function passes(d, f) {
+    if (f.minP != null && (d.price == null || d.price < f.minP)) return false;
+    if (f.maxP != null && (d.price == null || d.price > f.maxP)) return false;
+    if (f.minR != null && (d.relVol == null || d.relVol < f.minR)) return false;
+    if (f.minV != null && (d.volume == null || d.volume < f.minV)) return false;
+    if (f.lowOnly && !(d.float != null && d.float < 20e6)) return false;
+    return true;
+  }
+
+  function render() {
+    if (!data.length) return;
+    const f = getFilters();
+    const visible = data.filter(d => passes(d, f));
+    $('fShown').textContent = visible.length;
+    $('fTotal').textContent = data.length;
+    $('fLowWrap').classList.toggle('on', f.lowOnly);
+
+    const sorted = [...visible].sort((a,b) => {
+      const x = a[sortKey], y = b[sortKey];
+      if (x == null) return 1; if (y == null) return -1;
+      return (x < y ? -1 : x > y ? 1 : 0) * sortDir * -1;
+    });
+
+    if (!sorted.length) {
+      rowsEl.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:30px;color:var(--muted);font-family:var(--sans)">No spikers match these filters — loosen them or clear filters to see all ${data.length} results.</td></tr>`;
+      msgEl.style.display = 'none';
+      tbl.style.display = '';
+      updateStats(visible);
+      return;
+    }
+
+    rowsEl.innerHTML = sorted.map(d => {
+      const flash = prevPct[d.symbol] != null && d.changePct > prevPct[d.symbol] ? ' class="flash-up"' : '';
+      prevPct[d.symbol] = d.changePct;
+      const rotPct = d.floatRot != null ? Math.min(d.floatRot*100, 100) : 0;
+      return `<tr${flash}>
+        <td><span class="sym">${d.symbol}</span><span class="name">${d.name}</span></td>
+        <td>${fmt$(d.price)}</td>
+        <td class="${d.changePct >= 0 ? 'up' : 'dn'}">${d.changePct == null ? '—' : (d.changePct>=0?'+':'') + d.changePct.toFixed(2) + '%'}</td>
+        <td class="${(d.change||0) >= 0 ? 'up' : 'dn'}">${d.change == null ? '—' : (d.change>=0?'+':'') + d.change.toFixed(2)}</td>
+        <td>${fmtNum(d.volume)}</td>
+        <td style="color:var(--muted)">${fmtNum(d.avgVol)}</td>
+        <td class="${d.relVol >= 2 ? 'up' : ''}">${d.relVol == null ? '—' : d.relVol.toFixed(1) + 'x'}</td>
+        <td>${floatBadge(d.float, d.isSO)}</td>
+        <td>${d.floatRot == null ? '—' : d.floatRot.toFixed(2) + 'x'}<div class="bar"><i style="width:${rotPct}%"></i></div></td>
+        <td style="color:var(--muted)">${fmtNum(d.mcap)}</td>
+        <td class="news">${d.newsTitle
+          ? `<a href="${d.newsLink}" target="_blank" rel="noopener">${d.newsTitle}</a>
+             <div class="when ${d.newsTime && Date.now()-d.newsTime < 3600000 ? 'fresh' : ''}">${newsAge(d.newsTime)}</div>`
+          : '<span class="none">No recent headline</span>'}</td>
+      </tr>`;
+    }).join('');
+
+    msgEl.style.display = 'none';
+    tbl.style.display = '';
+    updateStats(visible);
+  }
+
+  function updateStats(list) {
+    $('stCount').textContent = list.length;
+    $('stLow').textContent = list.filter(d => d.float != null && d.float < 20e6).length;
+    const top = [...list].sort((a,b) => (b.changePct||0)-(a.changePct||0))[0];
+    $('stTop').textContent = top ? `${top.symbol} +${(top.changePct||0).toFixed(1)}%` : '—';
+    const avg = list.length ? list.reduce((s,d)=>s+(d.changePct||0),0)/list.length : 0;
+    $('stAvg').textContent = (avg>=0?'+':'') + avg.toFixed(1) + '%';
+  }
+
+  function setStatus(kind, txt) {
+    $('statusDot').className = 'dot ' + (kind === 'live' ? 'live' : kind === 'err' ? 'err' : '');
+    $('statusTxt').textContent = txt;
+  }
+
+  // sorting
+  document.querySelectorAll('thead th').forEach(th => {
+    th.addEventListener('click', () => {
+      const k = th.dataset.k;
+      if (sortKey === k) sortDir *= -1; else { sortKey = k; sortDir = -1; }
+      document.querySelectorAll('.arrow').forEach(a => a.remove());
+      const s = document.createElement('span');
+      s.className = 'arrow'; s.textContent = sortDir === -1 ? '▼' : '▲';
+      th.appendChild(s);
+      render();
+    });
+  });
+
+  // filters — re-render instantly on change
+  ['fMinPrice','fMaxPrice','fMinRvol','fMinVol'].forEach(id =>
+    $(id).addEventListener('input', render));
+  $('fLowFloat').addEventListener('change', render);
+  $('fClear').addEventListener('click', () => {
+    ['fMinPrice','fMaxPrice','fMinRvol','fMinVol'].forEach(id => $(id).value = '');
+    $('fLowFloat').checked = false;
+    render();
+  });
+
+  // refresh loop
+  function setLoop() {
+    clearInterval(timer);
+    const ms = +$('interval').value;
+    if (ms) timer = setInterval(scan, ms);
+  }
+  $('interval').addEventListener('change', setLoop);
+  $('refreshBtn').addEventListener('click', scan);
+
+  scan();
+  setLoop();
+})();
+</script>
+</body>
+</html>
