@@ -3,192 +3,238 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Float Scanner — Live Market Spikers</title>
+<title>FreeFloat — Live Low-Float Momentum Scanner</title>
 <style>
   :root{
-    --bg:#0b1220;
-    --panel:#111a2c;
-    --panel-2:#0e1626;
-    --line:#1d2a42;
-    --text:#dbe4f3;
-    --muted:#7d8ba3;
-    --green:#22c55e;
-    --green-dim:#123524;
-    --red:#ef4444;
-    --red-dim:#3a1620;
-    --gold:#f5b942;
-    --blue:#3b82f6;
+    --bg:#0b1220; --panel:#111a2c; --panel-2:#0e1626; --line:#1d2a42;
+    --text:#dbe4f3; --muted:#7d8ba3; --green:#22c55e; --green-dim:#123524;
+    --red:#ef4444; --red-dim:#3a1620; --gold:#f5b942; --blue:#3b82f6;
     --mono:'Roboto Mono','SF Mono',Consolas,monospace;
     --sans:'Segoe UI',system-ui,-apple-system,sans-serif;
   }
   *{margin:0;padding:0;box-sizing:border-box}
   body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh}
+  a{color:inherit}
 
   /* ---------- Top bar ---------- */
   header{
     display:flex;align-items:center;justify-content:space-between;gap:16px;
     padding:14px 22px;border-bottom:1px solid var(--line);
-    background:linear-gradient(180deg,#101a2e,#0c1424);
-    flex-wrap:wrap;
+    background:linear-gradient(180deg,#101a2e,#0c1424);flex-wrap:wrap;
   }
   .brand{display:flex;align-items:center;gap:12px}
-  .bolt{
-    width:38px;height:38px;border-radius:8px;display:grid;place-items:center;
+  .bolt{width:38px;height:38px;border-radius:8px;display:grid;place-items:center;
     background:linear-gradient(135deg,#16a34a,#065f46);font-size:20px;
-    box-shadow:0 0 18px rgba(34,197,94,.35);
-  }
+    box-shadow:0 0 18px rgba(34,197,94,.35)}
   .brand h1{font-size:18px;font-weight:700;letter-spacing:.5px}
   .brand h1 span{color:var(--green)}
-  .brand small{display:block;color:var(--muted);font-size:11px;font-weight:400;letter-spacing:1.5px;text-transform:uppercase}
+  .brand small{display:block;color:var(--muted);font-size:11px;letter-spacing:1.5px;text-transform:uppercase;font-weight:400}
   .controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-  .pill{
-    font-family:var(--mono);font-size:12px;padding:6px 12px;border-radius:999px;
+  .pill{font-family:var(--mono);font-size:12px;padding:6px 12px;border-radius:999px;
     border:1px solid var(--line);background:var(--panel-2);color:var(--muted);
-    display:flex;align-items:center;gap:7px;
-  }
+    display:flex;align-items:center;gap:7px}
   .dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
   .dot.live{background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 1.6s infinite}
   .dot.err{background:var(--red)}
   @keyframes pulse{50%{opacity:.35}}
-  select,button.btn{
-    background:var(--panel-2);color:var(--text);border:1px solid var(--line);
-    border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer;font-family:var(--sans);
-  }
+  select,button.btn{background:var(--panel-2);color:var(--text);border:1px solid var(--line);
+    border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer;font-family:var(--sans)}
   button.btn:hover{border-color:var(--green);color:var(--green)}
-  button.btn:focus-visible,select:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+  button.btn.on{border-color:var(--green);color:var(--green);background:var(--green-dim)}
+  button.btn:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+  button.icon{font-size:16px;padding:7px 11px}
 
   /* ---------- Stat strip ---------- */
-  .strip{
-    display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
-    gap:1px;background:var(--line);border-bottom:1px solid var(--line);
-  }
+  .strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;
+    background:var(--line);border-bottom:1px solid var(--line)}
   .stat{background:var(--panel-2);padding:12px 20px}
   .stat .lbl{font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted)}
   .stat .val{font-family:var(--mono);font-size:20px;font-weight:700;margin-top:3px}
   .stat .val.g{color:var(--green)} .stat .val.y{color:var(--gold)}
 
-  /* ---------- Scanner ---------- */
+  /* ---------- Hint bar (first-visit onboarding) ---------- */
+  .hint{display:flex;align-items:center;gap:10px;padding:10px 22px;font-size:12.5px;
+    color:var(--muted);background:#0d1830;border-bottom:1px solid var(--line)}
+  .hint b{color:var(--text)}
+  .hint button{margin-left:auto;background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px}
+  .hint button:hover{color:var(--text)}
+
+  /* ---------- Layout ---------- */
   main{padding:18px 22px;max-width:1560px;margin:0 auto}
   .layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px;align-items:start}
   @media (max-width:1080px){.layout{grid-template-columns:1fr}}
-  .panel{
-    background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;
-  }
-
-  /* ---------- Live news feed ---------- */
-  .feed{max-height:78vh;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
-  .feed-item{
-    display:block;padding:11px 14px;border-bottom:1px solid #16223a;text-decoration:none;
-    transition:background .15s;
-  }
-  .feed-item:hover{background:#152138}
-  .feed-item.breaking{border-left:3px solid var(--gold);background:linear-gradient(90deg,#2b241022,transparent)}
-  .feed-top{display:flex;align-items:center;gap:8px;margin-bottom:4px}
-  .tick{
-    font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.5px;
-    padding:2px 7px;border-radius:4px;background:var(--green-dim);color:var(--green);border:1px solid #1c5c36;
-  }
-  .feed-when{font-family:var(--mono);font-size:10px;color:var(--muted)}
-  .feed-when.fresh{color:var(--gold);font-weight:700}
-  .feed-pub{font-size:9.5px;color:var(--muted);margin-left:auto;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .feed-title{color:var(--text);font-size:12.5px;line-height:1.45;display:block}
-  .feed-item:hover .feed-title{color:var(--blue)}
-  .feed-empty{padding:28px 16px;text-align:center;color:var(--muted);font-size:12.5px;line-height:1.6}
-  .live-tag{
-    display:inline-flex;align-items:center;gap:6px;font-size:10px;letter-spacing:1px;
-    color:var(--red);font-weight:700;
-  }
-  .live-tag .dot{background:var(--red);box-shadow:0 0 8px var(--red);animation:pulse 1.2s infinite}
-  .panel-head{
-    display:flex;justify-content:space-between;align-items:center;gap:10px;
-    padding:12px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap;
-  }
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .panel-head{display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:12px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
   .panel-head h2{font-size:14px;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
   .panel-head h2 b{color:var(--text)}
   .legend{display:flex;gap:12px;font-size:11px;color:var(--muted);flex-wrap:wrap}
   .chip{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:middle}
 
-  .tbl-wrap{overflow-x:auto}
-  table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:13px}
-  thead th{
-    text-align:right;padding:9px 14px;font-size:10.5px;letter-spacing:1.2px;text-transform:uppercase;
-    color:var(--muted);border-bottom:1px solid var(--line);cursor:pointer;user-select:none;white-space:nowrap;
-    background:var(--panel-2);position:sticky;top:0;
-  }
-  thead th:first-child,tbody td:first-child{text-align:left}
-  thead th:hover{color:var(--text)}
-  thead th .arrow{font-size:9px;margin-left:3px}
-  tbody td{padding:10px 14px;text-align:right;border-bottom:1px solid #16223a;white-space:nowrap}
-  tbody tr{transition:background .15s}
-  tbody tr:hover{background:#152138}
-  tbody tr.flash-up{animation:flashUp 1s}
-  @keyframes flashUp{0%{background:var(--green-dim)}100%{background:transparent}}
-  .sym{font-weight:700;color:#fff;font-size:14px}
-  .name{display:block;color:var(--muted);font-size:10px;font-family:var(--sans);max-width:170px;overflow:hidden;text-overflow:ellipsis}
-  .up{color:var(--green);font-weight:700}
-  .dn{color:var(--red);font-weight:700}
-  .badge{
-    display:inline-block;padding:3px 9px;border-radius:5px;font-size:11px;font-weight:700;letter-spacing:.5px;
-  }
-  .b-low{background:var(--green-dim);color:var(--green);border:1px solid #1c5c36}
-  .b-med{background:#2b2410;color:var(--gold);border:1px solid #5c4a1c}
-  .b-high{background:#231a2e;color:#a78bfa;border:1px solid #45356b}
-  .b-na{background:#1a2233;color:var(--muted);border:1px solid var(--line)}
-  .bar{
-    height:4px;border-radius:2px;background:#1a2740;margin-top:5px;overflow:hidden;min-width:80px;
-  }
-  .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--green),#86efac)}
-
   /* ---------- Filter bar ---------- */
-  .filters{
-    display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;
-    padding:12px 16px;border-bottom:1px solid var(--line);background:var(--panel-2);
-  }
+  .filters{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;
+    padding:12px 16px;border-bottom:1px solid var(--line);background:var(--panel-2)}
   .f-group{display:flex;flex-direction:column;gap:4px}
   .f-group label{font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted)}
   .f-row{display:flex;align-items:center;gap:6px}
   .f-row span{color:var(--muted);font-size:12px}
-  .filters input{
-    width:86px;background:var(--bg);color:var(--text);border:1px solid var(--line);
-    border-radius:7px;padding:7px 9px;font-family:var(--mono);font-size:13px;
-  }
-  .filters input:focus-visible{outline:2px solid var(--green);outline-offset:1px;border-color:var(--green)}
-  .f-toggle{
-    display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text);cursor:pointer;
-    padding:8px 12px;border:1px solid var(--line);border-radius:7px;background:var(--bg);user-select:none;
-  }
+  .filters input,.filters select{width:86px;background:var(--bg);color:var(--text);
+    border:1px solid var(--line);border-radius:7px;padding:7px 9px;font-family:var(--mono);font-size:13px}
+  .filters select{width:auto;font-family:var(--sans)}
+  .f-toggle{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text);cursor:pointer;
+    padding:8px 12px;border:1px solid var(--line);border-radius:7px;background:var(--bg);user-select:none}
   .f-toggle input{width:auto;accent-color:var(--green)}
   .f-toggle.on{border-color:var(--green);color:var(--green)}
   button.btn.ghost{color:var(--muted);border-style:dashed}
   .f-count{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--muted)}
   .f-count b{color:var(--green)}
 
-  /* ---------- News column ---------- */
-  .news{max-width:230px;white-space:normal!important;font-family:var(--sans)}
-  .news a{
-    color:var(--text);text-decoration:none;font-size:11.5px;line-height:1.45;display:block;
-    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
-  }
+  /* ---------- Table ---------- */
+  .tbl-wrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:13px}
+  thead th{text-align:right;padding:9px 12px;font-size:10.5px;letter-spacing:1.2px;text-transform:uppercase;
+    color:var(--muted);border-bottom:1px solid var(--line);cursor:pointer;user-select:none;white-space:nowrap;
+    background:var(--panel-2);position:sticky;top:0;z-index:2}
+  thead th:first-child,thead th:nth-child(2),tbody td:first-child,tbody td:nth-child(2){text-align:left}
+  thead th:hover{color:var(--text)}
+  thead th .arrow{font-size:9px;margin-left:3px}
+  tbody td{padding:9px 12px;text-align:right;border-bottom:1px solid #16223a;white-space:nowrap}
+  tbody tr{transition:background .15s;cursor:pointer}
+  tbody tr:hover{background:#152138}
+  tbody tr.flash-up{animation:flashUp 1s}
+  tbody tr.stale{opacity:.55}
+  @keyframes flashUp{0%{background:var(--green-dim)}100%{background:transparent}}
+  .star{cursor:pointer;font-size:15px;color:#3a4a68;background:none;border:none;padding:2px 4px}
+  .star:hover{color:var(--gold)}
+  .star.on{color:var(--gold)}
+  .sym{font-weight:700;color:#fff;font-size:14px}
+  .name{display:block;color:var(--muted);font-size:10px;font-family:var(--sans);max-width:160px;overflow:hidden;text-overflow:ellipsis}
+  .tag{display:inline-block;font-size:8.5px;font-weight:700;letter-spacing:.8px;padding:2px 5px;
+    border-radius:4px;margin-left:6px;vertical-align:2px}
+  .tag.new{background:var(--green);color:#04140a}
+  .tag.halt{background:var(--red-dim);color:var(--red);border:1px solid #7f1d1d;cursor:help}
+  .tag.halted{background:var(--red);color:#fff;border:1px solid #b91c1c;animation:pulse 1.4s infinite;cursor:help}
+  .halts-box{border-bottom:1px solid var(--line)}
+  .halts-head{display:flex;align-items:center;gap:8px;padding:10px 14px;font-size:11px;
+    letter-spacing:1px;text-transform:uppercase;color:var(--red);font-weight:700}
+  .halt-row{display:flex;align-items:center;gap:10px;padding:8px 14px;border-top:1px solid #16223a;font-family:var(--mono);font-size:12px}
+  .halt-row .hsym{font-weight:700;color:#fff;cursor:pointer}
+  .halt-row .hsym:hover{color:var(--red)}
+  .halt-row .hreason{color:var(--muted);font-family:var(--sans);font-size:11px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .halt-row .hcd{color:var(--gold);font-weight:700;white-space:nowrap}
+  .halt-row .hcd.tbd{color:var(--muted);font-weight:400}
+  .tag.stale-tag{background:#1a2233;color:var(--muted);border:1px solid var(--line)}
+  .up{color:var(--green);font-weight:700}
+  .dn{color:var(--red);font-weight:700}
+  .badge{display:inline-block;padding:3px 9px;border-radius:5px;font-size:11px;font-weight:700;letter-spacing:.5px}
+  .b-low{background:var(--green-dim);color:var(--green);border:1px solid #1c5c36}
+  .b-med{background:#2b2410;color:var(--gold);border:1px solid #5c4a1c}
+  .b-high{background:#231a2e;color:#a78bfa;border:1px solid #45356b}
+  .b-na{background:#1a2233;color:var(--muted);border:1px solid var(--line)}
+  .bar{height:4px;border-radius:2px;background:#1a2740;margin-top:5px;overflow:hidden;min-width:70px}
+  .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--green),#86efac)}
+  .spark{width:92px;height:28px;display:block}
+  .spark-wait{width:92px;height:28px;display:grid;place-items:center;color:#3a4a68;font-size:9px;font-family:var(--sans)}
+  .news{max-width:220px;white-space:normal!important;font-family:var(--sans)}
+  .news a{color:var(--text);text-decoration:none;font-size:11.5px;line-height:1.45;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
   .news a:hover{color:var(--blue);text-decoration:underline}
   .news .when{font-family:var(--mono);font-size:9.5px;color:var(--muted);margin-top:3px}
   .news .when.fresh{color:var(--gold)}
   .news .none{color:var(--muted);font-size:11px}
 
+  /* compact density mode */
+  body.compact tbody td,body.compact thead th{padding:6px 9px}
+  body.compact .col-opt{display:none}
+  body.compact .name{display:none}
+  body.compact table{font-size:12px}
+
   .msg{padding:34px 20px;text-align:center;color:var(--muted);font-size:14px;line-height:1.7}
   .msg b{color:var(--text)}
-  .msg .spin{
-    width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--green);
-    border-radius:50%;margin:0 auto 14px;animation:rot .8s linear infinite;
-  }
+  .msg .spin{width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--green);
+    border-radius:50%;margin:0 auto 14px;animation:rot .8s linear infinite}
   @keyframes rot{to{transform:rotate(360deg)}}
 
-  footer{padding:16px 22px 30px;max-width:1280px;margin:0 auto;color:var(--muted);font-size:11.5px;line-height:1.7}
+  /* ---------- News feed ---------- */
+  .feed{max-height:78vh;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .feed-item{display:block;padding:11px 14px;border-bottom:1px solid #16223a;text-decoration:none;transition:background .15s}
+  .feed-item:hover{background:#152138}
+  .feed-item.breaking{border-left:3px solid var(--gold);background:linear-gradient(90deg,#2b241022,transparent)}
+  .feed-top{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+  .tick{font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.5px;
+    padding:2px 7px;border-radius:4px;background:var(--green-dim);color:var(--green);border:1px solid #1c5c36}
+  .feed-when{font-family:var(--mono);font-size:10px;color:var(--muted)}
+  .feed-when.fresh{color:var(--gold);font-weight:700}
+  .feed-pub{font-size:9.5px;color:var(--muted);margin-left:auto;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .feed-title{color:var(--text);font-size:12.5px;line-height:1.45;display:block}
+  .feed-item:hover .feed-title{color:var(--blue)}
+  .feed-empty{padding:28px 16px;text-align:center;color:var(--muted);font-size:12.5px;line-height:1.6}
+  .live-tag{display:inline-flex;align-items:center;gap:6px;font-size:10px;letter-spacing:1px;color:var(--red);font-weight:700}
+  .live-tag .dot{background:var(--red);box-shadow:0 0 8px var(--red);animation:pulse 1.2s infinite}
+
+  /* ---------- Detail drawer ---------- */
+  .drawer-bg{position:fixed;inset:0;background:rgba(4,8,16,.6);backdrop-filter:blur(2px);z-index:40;display:none}
+  .drawer-bg.open{display:block}
+  .drawer{position:fixed;top:0;right:-460px;width:min(440px,94vw);height:100vh;z-index:41;
+    background:var(--panel);border-left:1px solid var(--line);transition:right .25s ease;
+    display:flex;flex-direction:column;box-shadow:-20px 0 50px rgba(0,0,0,.5)}
+  .drawer.open{right:0}
+  .drawer-head{display:flex;align-items:center;gap:10px;padding:16px;border-bottom:1px solid var(--line)}
+  .drawer-head .sym{font-size:22px}
+  .drawer-head .close{margin-left:auto;background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer}
+  .drawer-head .close:hover{color:var(--text)}
+  .drawer-body{overflow-y:auto;padding:16px;flex:1}
+  .d-chart{width:100%;height:150px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;margin-bottom:14px}
+  .d-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);
+    border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:16px}
+  .d-cell{background:var(--panel-2);padding:10px 12px}
+  .d-cell .lbl{font-size:9.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted)}
+  .d-cell .val{font-family:var(--mono);font-size:15px;font-weight:700;margin-top:2px}
+  .d-news h3{font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+
+  /* ---------- Toasts ---------- */
+  .toasts{position:fixed;bottom:18px;right:18px;z-index:60;display:flex;flex-direction:column;gap:8px;max-width:340px}
+  .toast{background:var(--panel);border:1px solid var(--green);border-radius:9px;padding:12px 14px;
+    font-size:12.5px;line-height:1.5;box-shadow:0 8px 30px rgba(0,0,0,.5);animation:slideIn .25s ease;cursor:pointer}
+  .toast b{color:var(--green);font-family:var(--mono)}
+  .toast.hot{border-color:var(--gold)} .toast.hot b{color:var(--gold)}
+  @keyframes slideIn{from{transform:translateX(30px);opacity:0}to{transform:none;opacity:1}}
+
+  /* ---------- Modals (settings / help) ---------- */
+  .modal-bg{position:fixed;inset:0;background:rgba(4,8,16,.7);z-index:50;display:none;place-items:center;padding:16px}
+  .modal-bg.open{display:grid}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:12px;width:min(520px,100%);
+    max-height:86vh;overflow-y:auto}
+  .modal-head{display:flex;align-items:center;padding:16px 18px;border-bottom:1px solid var(--line)}
+  .modal-head h2{font-size:15px}
+  .modal-head .close{margin-left:auto;background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer}
+  .modal-body{padding:18px}
+  .set-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #16223a}
+  .set-row:last-child{border:none}
+  .set-row .info{flex:1}
+  .set-row .info b{font-size:13.5px;display:block}
+  .set-row .info span{font-size:11.5px;color:var(--muted);line-height:1.5;display:block;margin-top:2px}
+  .switch{position:relative;width:42px;height:23px;flex-shrink:0}
+  .switch input{opacity:0;width:0;height:0}
+  .switch i{position:absolute;inset:0;background:#1a2740;border:1px solid var(--line);border-radius:999px;
+    cursor:pointer;transition:.2s}
+  .switch i::after{content:'';position:absolute;left:3px;top:2.5px;width:15px;height:15px;border-radius:50%;
+    background:var(--muted);transition:.2s}
+  .switch input:checked+i{background:var(--green-dim);border-color:var(--green)}
+  .switch input:checked+i::after{left:21px;background:var(--green)}
+  .set-row input[type=number],.set-row input[type=text],.set-row input[type=password]{
+    background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:7px;
+    padding:7px 9px;font-family:var(--mono);font-size:13px;width:110px}
+  .set-row input[type=password],.set-row input[type=text].wide{width:190px}
+  .help-body h3{font-size:13px;color:var(--green);margin:14px 0 4px}
+  .help-body h3:first-child{margin-top:0}
+  .help-body p{font-size:12.5px;color:var(--muted);line-height:1.65}
+  .help-body p b{color:var(--text)}
+
+  footer{padding:16px 22px 30px;max-width:1560px;margin:0 auto;color:var(--muted);font-size:11.5px;line-height:1.7}
   footer b{color:var(--text)}
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
-  @media (max-width:640px){
-    header{padding:12px 14px} main{padding:12px 10px}
-    .stat .val{font-size:16px}
-  }
+  @media (max-width:640px){header{padding:12px 14px}main{padding:12px 10px}.stat .val{font-size:16px}}
 </style>
 </head>
 <body>
@@ -197,7 +243,7 @@
   <div class="brand">
     <div class="bolt">⚡</div>
     <div>
-      <h1>FLOAT<span>SCANNER</span></h1>
+      <h1>FREE<span>FLOAT</span></h1>
       <small>Live momentum · low float spikers</small>
     </div>
   </div>
@@ -212,7 +258,11 @@
         <option value="0">Off</option>
       </select>
     </label>
-    <button class="btn" id="refreshBtn">↻ Scan now</button>
+    <button class="btn" id="refreshBtn" title="Scan the market now">↻ Scan</button>
+    <button class="btn icon" id="alertBtn" title="Toggle sound + browser alerts">🔕</button>
+    <button class="btn icon" id="csvBtn" title="Export current view to CSV">⬇</button>
+    <button class="btn icon" id="settingsBtn" title="Settings">⚙</button>
+    <button class="btn icon" id="helpBtn" title="What do these columns mean?">?</button>
   </div>
 </header>
 
@@ -221,6 +271,12 @@
   <div class="stat"><div class="lbl">Low float (&lt;20M)</div><div class="val g" id="stLow">—</div></div>
   <div class="stat"><div class="lbl">Top gainer</div><div class="val g" id="stTop">—</div></div>
   <div class="stat"><div class="lbl">Avg move</div><div class="val y" id="stAvg">—</div></div>
+  <div class="stat"><div class="lbl">Watchlist</div><div class="val" id="stWatch">0</div></div>
+</div>
+
+<div class="hint" id="hintBar">
+  💡 <span><b>Quick tour:</b> click any row for charts &amp; headlines · ⭐ pins a stock so it never disappears · 🔔 turns on spike alerts · <b>?</b> explains every column.</span>
+  <button id="hintClose" aria-label="Dismiss tip">×</button>
 </div>
 
 <main>
@@ -235,6 +291,15 @@
       </div>
     </div>
     <div class="filters">
+      <div class="f-group">
+        <label for="fPreset">Preset</label>
+        <select id="fPreset">
+          <option value="">— Custom —</option>
+          <option value="classic">🎯 Classic low float</option>
+          <option value="cheap">💸 Cheap runners (&lt;$5)</option>
+          <option value="heavy">📊 Heavy volume movers</option>
+        </select>
+      </div>
       <div class="f-group">
         <label for="fMinPrice">Price range ($)</label>
         <div class="f-row">
@@ -251,26 +316,28 @@
         <label for="fMinVol">Min volume</label>
         <input type="number" id="fMinVol" min="0" step="100000" placeholder="e.g. 500000">
       </div>
-      <label class="f-toggle" id="fLowWrap">
-        <input type="checkbox" id="fLowFloat"> Low float only (&lt;20M)
-      </label>
-      <button class="btn ghost" id="fClear">Clear filters</button>
+      <label class="f-toggle" id="fLowWrap"><input type="checkbox" id="fLowFloat"> Low float only</label>
+      <label class="f-toggle" id="fGapWrap" title="Show gap % vs previous close and sort by it"><input type="checkbox" id="fGap"> Gap mode</label>
+      <button class="btn ghost" id="fClear">Clear</button>
       <div class="f-count">Showing <b id="fShown">0</b> / <span id="fTotal">0</span></div>
     </div>
     <div class="tbl-wrap">
       <table id="tbl" style="display:none">
         <thead>
           <tr>
+            <th style="cursor:default" title="Pin to watchlist">⭐</th>
             <th data-k="symbol">Symbol</th>
+            <th style="cursor:default">Today</th>
             <th data-k="price">Price</th>
             <th data-k="changePct">% Chg <span class="arrow" id="a-changePct">▼</span></th>
-            <th data-k="change">$ Chg</th>
+            <th data-k="gapPct" class="col-gap" style="display:none">Gap %</th>
+            <th data-k="change" class="col-opt">$ Chg</th>
             <th data-k="volume">Volume</th>
-            <th data-k="avgVol">Avg Vol (3M)</th>
+            <th data-k="avgVol" class="col-opt">Avg Vol</th>
             <th data-k="relVol">RVOL</th>
             <th data-k="float">Float</th>
-            <th data-k="floatRot">Float Rotation</th>
-            <th data-k="mcap">Mkt Cap</th>
+            <th data-k="floatRot">Rotation</th>
+            <th data-k="mcap" class="col-opt">Mkt Cap</th>
             <th data-k="newsTime" style="text-align:left">Latest News</th>
           </tr>
         </thead>
@@ -281,6 +348,10 @@
   </div>
 
   <aside class="panel">
+    <div class="halts-box" id="haltsBox" style="display:none">
+      <div class="halts-head">⛔ Active halts <span id="haltCount" style="color:var(--text)"></span></div>
+      <div id="haltRows"></div>
+    </div>
     <div class="panel-head">
       <h2><b>Spiker News</b> feed</h2>
       <span class="live-tag"><span class="dot"></span>LIVE</span>
@@ -293,12 +364,87 @@
 </main>
 
 <footer>
-  <b>How this works:</b> data comes from Yahoo Finance's free public endpoints (day-gainers screener + quote data), routed through free public CORS proxies so it runs straight in your browser — no API key, no signup, no cost. <b>Float</b> = free-float shares available to trade; when it isn't published, shares outstanding is shown and marked <b>SO</b>. <b>Float rotation</b> = today's volume ÷ float (how many times the float has traded). Free proxies can occasionally rate-limit; the app auto-rotates between several. Data is delayed/unofficial — for information only, not trading advice.
+  <b>How this works:</b> data comes from Yahoo Finance's free public endpoints (day-gainers screener, quotes, key statistics, intraday charts, and news search), routed through free public CORS proxies — no API key, no signup, no cost. <b>Float</b> = free-float shares available to trade; when unpublished, shares outstanding is shown and marked <b>SO</b>. <b>Rotation</b> = today's volume ÷ float. <b>⛔ HALTED</b> badges come from Nasdaq's official trade-halt feed with live resume countdowns; <b>⚠ HALT?</b> is our heuristic for halt candidates. Data is delayed/unofficial — for information only, not trading advice.
 </footer>
+
+<!-- Detail drawer -->
+<div class="drawer-bg" id="drawerBg"></div>
+<div class="drawer" id="drawer" role="dialog" aria-label="Stock detail">
+  <div class="drawer-head">
+    <span class="sym" id="dSym">—</span>
+    <span id="dChg" class="up" style="font-family:var(--mono);font-size:15px"></span>
+    <button class="star" id="dStar" title="Pin to watchlist">☆</button>
+    <button class="close" id="dClose" aria-label="Close">×</button>
+  </div>
+  <div class="drawer-body">
+    <div id="dHalt" style="display:none;background:var(--red-dim);border:1px solid #7f1d1d;border-radius:8px;padding:12px 14px;font-size:12.5px;line-height:1.7;margin-bottom:14px"></div>
+    <svg class="d-chart" id="dChart" viewBox="0 0 400 150" preserveAspectRatio="none"></svg>
+    <div class="d-grid" id="dGrid"></div>
+    <div class="d-news"><h3>Headlines</h3><div id="dNews"></div></div>
+  </div>
+</div>
+
+<!-- Settings modal -->
+<div class="modal-bg" id="settingsModal">
+  <div class="modal">
+    <div class="modal-head"><h2>⚙ Settings</h2><button class="close" data-close="settingsModal">×</button></div>
+    <div class="modal-body">
+      <div class="set-row">
+        <div class="info"><b>Sound alerts</b><span>Beep when a new spiker enters the scan or a hot setup triggers.</span></div>
+        <label class="switch"><input type="checkbox" id="setSound"><i></i></label>
+      </div>
+      <div class="set-row">
+        <div class="info"><b>Browser notifications</b><span>Get a desktop notification even when this tab is in the background.</span></div>
+        <label class="switch"><input type="checkbox" id="setNotify"><i></i></label>
+      </div>
+      <div class="set-row">
+        <div class="info"><b>Hot alert threshold</b><span>Alert when a stock's RVOL crosses this and it has news within the hour.</span></div>
+        <input type="number" id="setRvol" min="1" step="0.5" value="3">
+      </div>
+      <div class="set-row">
+        <div class="info"><b>Compact mode</b><span>Denser rows, fewer columns — good for laptops and phones.</span></div>
+        <label class="switch"><input type="checkbox" id="setCompact"><i></i></label>
+      </div>
+      <div class="set-row">
+        <div class="info"><b>Finnhub API key (optional)</b><span>Free key from finnhub.io. Used as a backup data source when the public proxies rate-limit. Stored only in this page's URL on your device.</span></div>
+        <input type="password" id="setFhKey" placeholder="paste key">
+      </div>
+      <div class="set-row">
+        <div class="info"><b>Share this setup</b><span>Your watchlist, filters and settings live in the URL — copy it to save or share.</span></div>
+        <button class="btn" id="copyLink">Copy link</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Help modal -->
+<div class="modal-bg" id="helpModal">
+  <div class="modal">
+    <div class="modal-head"><h2>? What am I looking at</h2><button class="close" data-close="helpModal">×</button></div>
+    <div class="modal-body help-body">
+      <h3>Float</h3><p>Shares actually available to trade publicly. <b>Low float (&lt;20M, green)</b> means small supply — when demand spikes, price can move violently. If a company doesn't publish float, we show total shares outstanding marked <b>SO</b>.</p>
+      <h3>RVOL (relative volume)</h3><p>Today's volume ÷ 3-month average. <b>2x+</b> means unusual interest; the higher, the more eyes on it.</p>
+      <h3>Rotation</h3><p>Today's volume ÷ float — how many times the entire float has changed hands today. Above <b>1x</b> is extreme churn.</p>
+      <h3>Gap %</h3><p>Today's open vs. yesterday's close. Enable <b>Gap mode</b> in the filter bar to see and sort by it — useful pre-market and at the open.</p>
+      <h3>⛔ HALTED (with countdown)</h3><p>Real halt data from Nasdaq's official trade-halt feed, refreshed every minute. The countdown shows <b>minutes until trading resumes</b> when the exchange has announced a resumption time. LULD volatility pauses are a minimum of 5 minutes but <b>can extend repeatedly</b> if the price is still moving at re-open — so "resume TBD" or a countdown that resets is normal. News-pending halts (T1) have no set length at all.</p>
+      <h3>⚠ HALT?</h3><p>Our own heuristic flag (big % move + heavy RVOL) marking stocks that <b>might</b> get halted soon. Different from ⛔, which is official.</p>
+      <h3>Trading around halts — what the evidence actually says</h3>
+      <p><b>First, the mechanics:</b> you cannot buy or sell during a halt. Orders you place may queue for the re-open or be rejected, depending on your broker, and you can cancel resting orders during most halts. When trading resumes, the price often <b>gaps</b> — it re-opens away from the halt price, sometimes dramatically, so stop-losses give no protection through a halt.</p>
+      <p><b>What academic research finds:</b> studies of trading halts and LULD pauses consistently show that volatility and bid-ask spreads are <b>elevated immediately after resumption</b>, not calmed — the halt concentrates uncertainty at the re-open. Post-halt direction is close to a coin flip in aggregate: momentum sometimes continues, sometimes sharply reverses, and no published research demonstrates a reliable, durable edge from simply buying or selling every resumption. Halts triggered by pending news resolve on the news itself, which is unknowable in advance by definition.</p>
+      <p><b>Risk-management principles that follow from the evidence</b> (education, not a recommendation): decide your exit and invalidation levels <b>before</b> a halt-prone stock halts, not during; assume the re-open can gap against you by more than your stop distance and size the position so that outcome is survivable; prefer <b>limit orders over market orders</b> at resumption, when spreads are widest and fills are worst; and treat repeated back-to-back halts as rising, not falling, risk. If you're unsure what to do with a halted position, that uncertainty is itself information — consult a licensed financial advisor for decisions about your money. Nothing on this site is financial advice.</p>
+      <h3>NEW</h3><p>The ticker just appeared on the gainers scan this cycle — fresh momentum.</p>
+      <h3>⭐ Watchlist</h3><p>Pinned stocks stay at the top and <b>never disappear</b>, even after they drop off the gainers list (they dim and show "off scan"). Your watchlist is saved in the URL.</p>
+      <h3>🔔 Alerts</h3><p>Toggle with the bell. You'll get a toast (plus optional sound/desktop notification) when a new spiker appears, and a gold <b>HOT</b> alert when something crosses your RVOL threshold with fresh news.</p>
+      <p style="margin-top:14px">Data is free, delayed and unofficial — treat this as a radar, not a trading terminal. Nothing here is financial advice.</p>
+    </div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts"></div>
 
 <script>
 (() => {
-  // ---------- Free CORS proxies (rotated on failure) ----------
+  // ================= Free CORS proxies =================
   const PROXIES = [
     u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
     u => 'https://corsproxy.io/?url=' + encodeURIComponent(u),
@@ -310,29 +456,191 @@
   const QUOTE = syms => 'https://query1.finance.yahoo.com/v7/finance/quote?symbols=' + syms.join(',');
   const SUMMARY = s => `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${s}?modules=defaultKeyStatistics`;
   const NEWS = s => `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(s)}&newsCount=5&quotesCount=0`;
-  const NEWS_TTL = 5 * 60 * 1000; // re-check headlines every 5 min per symbol
-  const newsCache = {}; // symbol -> {items:[{title,link,time,pub}], title, link, time, fetchedAt}
+  const CHART = s => `https://query1.finance.yahoo.com/v8/finance/chart/${s}?range=1d&interval=5m&includePrePost=true`;
+  const HALTS_RSS = 'https://www.nasdaqtrader.com/rss.aspx?feed=tradehalts';
+  const HALT_TTL = 60e3;
 
-  async function getNews(sym) {
-    const c = newsCache[sym];
-    if (c && Date.now() - c.fetchedAt < NEWS_TTL) return c;
+  const HALT_REASONS = {
+    LUDP: 'LULD volatility pause', LUDS: 'LULD straddle pause',
+    T1: 'News pending', T2: 'News released', T5: 'Single-stock trading pause',
+    T6: 'Extraordinary market activity', T8: 'ETF halt', T12: 'Info requested by exchange',
+    H4: 'Non-compliance', H9: 'Filings not current', H10: 'SEC trading suspension',
+    H11: 'Regulatory concern', M: 'Corporate action', D: 'Security deletion',
+  };
+
+  let haltState = {list: [], fetchedAt: 0};
+  const haltMap = {}; // symbol -> halt record
+  const haltAlerted = new Set();
+
+  async function fetchText(url, tries = PROXIES.length) {
+    for (let i = 0; i < tries; i++) {
+      const make = PROXIES[(proxyIdx + i) % PROXIES.length];
+      try {
+        const r = await fetch(make(url), {cache:'no-store'});
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return await r.text();
+      } catch (e) { /* next proxy */ }
+    }
+    throw new Error('All proxies failed');
+  }
+
+  // Nasdaq publishes halt times in US Eastern; convert using the current ET offset
+  function etOffsetMs() {
+    const now = new Date();
+    const et = new Date(now.toLocaleString('en-US', {timeZone: 'America/New_York'}));
+    return now - et; // ms to ADD to an ET-naive date to get real UTC-based time
+  }
+  function etToDate(dateStr, timeStr) {
+    if (!dateStr || !timeStr) return null;
+    const d = new Date(`${dateStr} ${timeStr}`);
+    if (isNaN(d)) return null;
+    return new Date(d.getTime() + etOffsetMs());
+  }
+
+  async function refreshHalts() {
+    if (Date.now() - haltState.fetchedAt < HALT_TTL) return;
     try {
-      const j = await fetchJSON(NEWS(sym), 2);
-      const items = (j?.news || []).map(n => ({
-        title: n.title, link: n.link,
-        time: (n.providerPublishTime || 0) * 1000,
-        pub: n.publisher || '',
-      })).filter(n => n.title);
-      const first = items[0] || {};
-      return (newsCache[sym] = {
-        items,
-        title: first.title || null, link: first.link || null, time: first.time || 0,
-        fetchedAt: Date.now(),
-      });
-    } catch (e) {
-      return (newsCache[sym] = {items: [], title: null, link: null, time: 0, fetchedAt: Date.now() - NEWS_TTL + 60000});
+      const xmlText = await fetchText(HALTS_RSS, 2);
+      const doc = new DOMParser().parseFromString(xmlText, 'text/xml');
+      const items = [...doc.getElementsByTagName('item')];
+      const get = (it, tag) => {
+        const el = it.getElementsByTagName('ndaq:' + tag)[0] || it.getElementsByTagName(tag)[0];
+        return el ? el.textContent.trim() : '';
+      };
+      const list = items.map(it => {
+        const sym = get(it, 'IssueSymbol');
+        const reason = get(it, 'ReasonCode');
+        const haltedAt = etToDate(get(it, 'HaltDate'), get(it, 'HaltTime'));
+        const resumeTrade = etToDate(get(it, 'ResumptionDate') || get(it, 'HaltDate'), get(it, 'ResumptionTradeTime'));
+        const resumeQuote = etToDate(get(it, 'ResumptionDate') || get(it, 'HaltDate'), get(it, 'ResumptionQuoteTime'));
+        return {sym, reason, haltedAt, resumeTrade, resumeQuote};
+      }).filter(h => h.sym);
+      haltState = {list, fetchedAt: Date.now()};
+      for (const k in haltMap) delete haltMap[k];
+      for (const h of list) {
+        // active = no trade-resumption time yet, or it's still in the future
+        if (!h.resumeTrade || h.resumeTrade.getTime() > Date.now()) haltMap[h.sym] = h;
+      }
+      haltAlertCheck();
+      renderHalts();
+      if (data.length) render(); // refresh badges with real halt data
+    } catch (e) { /* keep last known halts */ }
+  }
+
+  function haltMinutesLeft(h) {
+    if (!h.resumeTrade) return null; // not announced
+    const ms = h.resumeTrade.getTime() - Date.now();
+    return ms > 0 ? ms / 60000 : 0;
+  }
+  function haltCountdownText(h) {
+    const m = haltMinutesLeft(h);
+    if (m == null) return 'resume TBD';
+    if (m <= 0) return 'resuming now';
+    if (m < 1) return '<1 min left';
+    return Math.ceil(m) + ' min left';
+  }
+  function haltAlertCheck() {
+    if (!S.alerts) return;
+    const tracked = new Set([...data.map(d => d.symbol), ...S.watch]);
+    for (const sym in haltMap) {
+      if (!tracked.has(sym) || haltAlerted.has(sym)) continue;
+      haltAlerted.add(sym);
+      const h = haltMap[sym];
+      toast(`⛔ <b>${esc(sym)}</b> HALTED — ${esc(HALT_REASONS[h.reason] || h.reason)} · ${haltCountdownText(h)}`, 'hot', sym);
+      beep(440);
+      notifyDesktop(`${sym} trading halted`, `${HALT_REASONS[h.reason] || h.reason} — ${haltCountdownText(h)}`);
     }
   }
+
+  const NEWS_TTL = 5 * 60e3, CHART_TTL = 2 * 60e3;
+  const floatCache = {}, newsCache = {}, chartCache = {};
+
+  const $ = id => document.getElementById(id);
+  const rowsEl = $('rows'), msgEl = $('msg'), tbl = $('tbl');
+
+  // ================= State (persisted in URL hash) =================
+  let data = [], lastKnown = {}, prevPct = {}, prevSymbols = new Set(), firstScan = true;
+  let sortKey = 'changePct', sortDir = -1, timer = null;
+  const S = { // settings
+    watch: new Set(), alerts: false, sound: false, notify: false,
+    rvolAlert: 3, compact: false, gap: false, fhKey: '',
+  };
+
+  function saveHash() {
+    const p = new URLSearchParams();
+    if (S.watch.size) p.set('w', [...S.watch].join(','));
+    ['fMinPrice','fMaxPrice','fMinRvol','fMinVol'].forEach(id => { if ($(id).value) p.set(id.slice(1), $(id).value); });
+    if ($('fLowFloat').checked) p.set('low', '1');
+    if (S.gap) p.set('gap', '1');
+    if (S.alerts) p.set('al', '1');
+    if (S.sound) p.set('snd', '1');
+    if (S.rvolAlert !== 3) p.set('rv', S.rvolAlert);
+    if (S.compact) p.set('cmp', '1');
+    if (S.fhKey) p.set('fh', S.fhKey);
+    const preset = $('fPreset').value; if (preset) p.set('ps', preset);
+    history.replaceState(null, '', p.toString() ? '#' + p.toString() : location.pathname);
+  }
+
+  function loadHash() {
+    const p = new URLSearchParams(location.hash.slice(1));
+    (p.get('w') || '').split(',').filter(Boolean).forEach(s => S.watch.add(s));
+    ['MinPrice','MaxPrice','MinRvol','MinVol'].forEach(k => { if (p.get(k)) $('f'+k).value = p.get(k); });
+    $('fLowFloat').checked = p.get('low') === '1';
+    S.gap = p.get('gap') === '1'; $('fGap').checked = S.gap;
+    S.alerts = p.get('al') === '1';
+    S.sound = p.get('snd') === '1'; $('setSound').checked = S.sound;
+    S.rvolAlert = parseFloat(p.get('rv')) || 3; $('setRvol').value = S.rvolAlert;
+    S.compact = p.get('cmp') === '1'; $('setCompact').checked = S.compact;
+    S.fhKey = p.get('fh') || ''; $('setFhKey').value = S.fhKey;
+    if (p.get('ps')) $('fPreset').value = p.get('ps');
+    applyUiState();
+  }
+
+  function applyUiState() {
+    document.body.classList.toggle('compact', S.compact);
+    $('alertBtn').textContent = S.alerts ? '🔔' : '🔕';
+    $('alertBtn').classList.toggle('on', S.alerts);
+    document.querySelectorAll('.col-gap').forEach(el => el.style.display = S.gap ? '' : 'none');
+    $('fGapWrap').classList.toggle('on', S.gap);
+    $('stWatch').textContent = S.watch.size;
+  }
+
+  // ================= Fetch helpers =================
+  async function fetchJSON(url, tries = PROXIES.length) {
+    for (let i = 0; i < tries; i++) {
+      const make = PROXIES[(proxyIdx + i) % PROXIES.length];
+      try {
+        const r = await fetch(make(url), {cache:'no-store'});
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const j = await r.json();
+        proxyIdx = (proxyIdx + i) % PROXIES.length;
+        return j;
+      } catch (e) { /* next proxy */ }
+    }
+    throw new Error('All proxies failed');
+  }
+
+  // Finnhub is CORS-enabled — direct calls, no proxy needed (free key)
+  async function fhQuote(sym) {
+    if (!S.fhKey) return null;
+    try {
+      const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${S.fhKey}`);
+      if (!r.ok) return null;
+      const j = await r.json();
+      if (!j.c) return null;
+      return {price: j.c, change: j.d, changePct: j.dp, prevClose: j.pc, open: j.o};
+    } catch (e) { return null; }
+  }
+
+  function fmtNum(n) {
+    if (n == null || isNaN(n)) return '—';
+    if (n >= 1e9) return (n/1e9).toFixed(2) + 'B';
+    if (n >= 1e6) return (n/1e6).toFixed(2) + 'M';
+    if (n >= 1e3) return (n/1e3).toFixed(1) + 'K';
+    return String(Math.round(n));
+  }
+  const fmt$ = n => n == null || isNaN(n) ? '—' : '$' + n.toFixed(2);
+  const esc = s => String(s || '').replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
 
   function newsAge(t) {
     if (!t) return '';
@@ -344,42 +652,7 @@
     return Math.floor(h / 24) + 'd ago';
   }
 
-  const $ = id => document.getElementById(id);
-  const rowsEl = $('rows'), msgEl = $('msg'), tbl = $('tbl');
-  let data = [], sortKey = 'changePct', sortDir = -1, timer = null, prevPct = {};
-  const floatCache = {}; // symbol -> {float, isSO}
-
-  async function fetchJSON(url, tries = PROXIES.length) {
-    for (let i = 0; i < tries; i++) {
-      const make = PROXIES[(proxyIdx + i) % PROXIES.length];
-      try {
-        const r = await fetch(make(url), {cache:'no-store'});
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        const j = await r.json();
-        proxyIdx = (proxyIdx + i) % PROXIES.length; // stick with working proxy
-        return j;
-      } catch (e) { /* try next proxy */ }
-    }
-    throw new Error('All proxies failed');
-  }
-
-  function fmtNum(n) {
-    if (n == null || isNaN(n)) return '—';
-    if (n >= 1e9) return (n/1e9).toFixed(2) + 'B';
-    if (n >= 1e6) return (n/1e6).toFixed(2) + 'M';
-    if (n >= 1e3) return (n/1e3).toFixed(1) + 'K';
-    return String(Math.round(n));
-  }
-  const fmt$ = n => n == null || isNaN(n) ? '—' : '$' + n.toFixed(2);
-
-  function floatBadge(f, isSO) {
-    if (f == null) return '<span class="badge b-na">N/A</span>';
-    const tag = isSO ? ' <span style="color:var(--muted);font-size:9px">SO</span>' : '';
-    if (f < 20e6)  return `<span class="badge b-low">${fmtNum(f)}</span>${tag}`;
-    if (f < 100e6) return `<span class="badge b-med">${fmtNum(f)}</span>${tag}`;
-    return `<span class="badge b-high">${fmtNum(f)}</span>${tag}`;
-  }
-
+  // ================= Data enrichment =================
   async function getFloat(sym, sharesOutstanding) {
     if (floatCache[sym]) return floatCache[sym];
     try {
@@ -387,45 +660,164 @@
       const ks = j?.quoteSummary?.result?.[0]?.defaultKeyStatistics;
       const f = ks?.floatShares?.raw ?? ks?.floatShares;
       if (f) return (floatCache[sym] = {float: f, isSO: false});
-    } catch (e) { /* fall through */ }
+    } catch (e) {}
     if (sharesOutstanding) return (floatCache[sym] = {float: sharesOutstanding, isSO: true});
     return (floatCache[sym] = {float: null, isSO: false});
   }
 
+  async function getNews(sym) {
+    const c = newsCache[sym];
+    if (c && Date.now() - c.fetchedAt < NEWS_TTL) return c;
+    try {
+      const j = await fetchJSON(NEWS(sym), 2);
+      const items = (j?.news || []).map(n => ({
+        title: n.title, link: n.link, time: (n.providerPublishTime || 0) * 1000, pub: n.publisher || '',
+      })).filter(n => n.title);
+      const f = items[0] || {};
+      return (newsCache[sym] = {items, title: f.title || null, link: f.link || null, time: f.time || 0, fetchedAt: Date.now()});
+    } catch (e) {
+      return (newsCache[sym] = {items: [], title: null, link: null, time: 0, fetchedAt: Date.now() - NEWS_TTL + 60e3});
+    }
+  }
+
+  async function getChart(sym) {
+    const c = chartCache[sym];
+    if (c && Date.now() - c.fetchedAt < CHART_TTL) return c;
+    try {
+      const j = await fetchJSON(CHART(sym), 2);
+      const r = j?.chart?.result?.[0];
+      const closes = (r?.indicators?.quote?.[0]?.close || []).filter(v => v != null);
+      const prevClose = r?.meta?.chartPreviousClose ?? r?.meta?.previousClose ?? null;
+      if (closes.length > 1) return (chartCache[sym] = {closes, prevClose, fetchedAt: Date.now()});
+    } catch (e) {}
+    return (chartCache[sym] = {closes: [], prevClose: null, fetchedAt: Date.now() - CHART_TTL + 45e3});
+  }
+
+  // ================= Sparkline SVG =================
+  function sparkSVG(closes, prevClose, w, h, big) {
+    if (!closes || closes.length < 2) return '';
+    const min = Math.min(...closes, prevClose ?? Infinity);
+    const max = Math.max(...closes, prevClose ?? -Infinity);
+    const rng = (max - min) || 1;
+    const X = i => (i / (closes.length - 1)) * w;
+    const Y = v => h - 3 - ((v - min) / rng) * (h - 6);
+    const pts = closes.map((v, i) => `${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
+    const up = closes[closes.length-1] >= (prevClose ?? closes[0]);
+    const col = up ? 'var(--green)' : 'var(--red)';
+    let ref = '';
+    if (prevClose != null && prevClose >= min && prevClose <= max)
+      ref = `<line x1="0" y1="${Y(prevClose).toFixed(1)}" x2="${w}" y2="${Y(prevClose).toFixed(1)}" stroke="#3a4a68" stroke-dasharray="3,3" stroke-width="1"/>`;
+    const fill = big ? `<polygon points="0,${h} ${pts} ${w},${h}" fill="${col}" opacity="0.08"/>` : '';
+    return `${ref}${fill}<polyline points="${pts}" fill="none" stroke="${col}" stroke-width="${big?2:1.5}" stroke-linejoin="round"/>`;
+  }
+
+  // background sparkline loader (limited concurrency, updates cells in place)
+  let sparkQueue = [], sparkBusy = 0;
+  function queueSparks(symbols) {
+    sparkQueue = symbols.filter(s => {
+      const c = chartCache[s];
+      return !c || Date.now() - c.fetchedAt >= CHART_TTL;
+    });
+    pumpSparks();
+  }
+  async function pumpSparks() {
+    while (sparkBusy < 3 && sparkQueue.length) {
+      const sym = sparkQueue.shift();
+      sparkBusy++;
+      getChart(sym).then(() => {
+        sparkBusy--;
+        drawSparkCell(sym);
+        pumpSparks();
+      });
+    }
+  }
+  function drawSparkCell(sym) {
+    const cell = document.querySelector(`[data-spark="${CSS.escape(sym)}"]`);
+    if (!cell) return;
+    const c = chartCache[sym];
+    if (c && c.closes.length > 1)
+      cell.innerHTML = `<svg class="spark" viewBox="0 0 92 28" preserveAspectRatio="none">${sparkSVG(c.closes, c.prevClose, 92, 28)}</svg>`;
+    else cell.innerHTML = '<div class="spark-wait">n/a</div>';
+  }
+
+  // ================= Alerts =================
+  function beep(freq = 880) {
+    if (!S.sound) return;
+    try {
+      const ctx = beep.ctx || (beep.ctx = new (window.AudioContext || window.webkitAudioContext)());
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.frequency.value = freq; o.type = 'sine';
+      g.gain.setValueAtTime(0.12, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.35);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(); o.stop(ctx.currentTime + 0.36);
+    } catch (e) {}
+  }
+
+  function notifyDesktop(title, body) {
+    if (!S.notify || !('Notification' in window) || Notification.permission !== 'granted') return;
+    try { new Notification(title, {body}); } catch (e) {}
+  }
+
+  function toast(html, cls = '', sym = null) {
+    const t = document.createElement('div');
+    t.className = 'toast ' + cls;
+    t.innerHTML = html;
+    t.addEventListener('click', () => { if (sym) openDrawer(sym); t.remove(); });
+    $('toasts').appendChild(t);
+    setTimeout(() => t.remove(), 9000);
+    while ($('toasts').children.length > 4) $('toasts').firstChild.remove();
+  }
+
+  const hotAlerted = new Set();
+  function runAlerts() {
+    if (!S.alerts || firstScan) return;
+    for (const d of data) {
+      if (!prevSymbols.has(d.symbol)) {
+        toast(`🚀 <b>${esc(d.symbol)}</b> just hit the scan — +${(d.changePct||0).toFixed(1)}% at ${fmt$(d.price)}`, '', d.symbol);
+        beep(880);
+        notifyDesktop(`${d.symbol} entered the spiker scan`, `+${(d.changePct||0).toFixed(1)}% at ${fmt$(d.price)}`);
+      }
+      const freshNews = d.newsTime && Date.now() - d.newsTime < 3600e3;
+      if (d.relVol >= S.rvolAlert && freshNews && !hotAlerted.has(d.symbol)) {
+        hotAlerted.add(d.symbol);
+        toast(`🔥 <b>${esc(d.symbol)}</b> HOT — ${d.relVol.toFixed(1)}x RVOL with news ${newsAge(d.newsTime)}`, 'hot', d.symbol);
+        beep(1320);
+        notifyDesktop(`${d.symbol} hot setup`, `${d.relVol.toFixed(1)}x RVOL + fresh news`);
+      }
+    }
+  }
+
+  // ================= Scan =================
   async function scan() {
     setStatus('live', 'Scanning…');
+    refreshHalts(); // parallel, non-blocking
     try {
-      // 1) get today's biggest gainers
       const scr = await fetchJSON(SCREENER);
       let quotes = scr?.finance?.result?.[0]?.quotes || [];
-
-      // 2) if screener gave slim objects, enrich via quote endpoint
       if (quotes.length && quotes[0].regularMarketPrice == null) {
         const syms = quotes.map(q => q.symbol).slice(0, 30);
         const qj = await fetchJSON(QUOTE(syms));
         quotes = qj?.quoteResponse?.result || quotes;
       }
+      quotes = quotes.filter(q => (q.regularMarketChangePercent ?? 0) > 0).slice(0, 25);
 
-      quotes = quotes
-        .filter(q => (q.regularMarketChangePercent ?? 0) > 0)
-        .slice(0, 25);
-
-      // 3) resolve float for each (cached; a few at a time)
       const enriched = [];
       for (const q of quotes) {
         const fl = await getFloat(q.symbol, q.sharesOutstanding);
         const nw = await getNews(q.symbol);
         const vol = q.regularMarketVolume ?? null;
         const avg = q.averageDailyVolume3Month ?? null;
+        const open = q.regularMarketOpen ?? null, prev = q.regularMarketPreviousClose ?? null;
         enriched.push({
-          symbol: q.symbol,
-          name: q.shortName || q.longName || '',
+          symbol: q.symbol, name: q.shortName || q.longName || '',
           price: q.regularMarketPrice ?? null,
           change: q.regularMarketChange ?? null,
           changePct: q.regularMarketChangePercent ?? null,
-          volume: vol,
-          avgVol: avg,
-          relVol: vol && avg ? vol/avg : null,
+          open, prevClose: prev,
+          gapPct: open && prev ? ((open - prev) / prev) * 100 : null,
+          dayHigh: q.regularMarketDayHigh ?? null, dayLow: q.regularMarketDayLow ?? null,
+          volume: vol, avgVol: avg, relVol: vol && avg ? vol/avg : null,
           float: fl.float, isSO: fl.isSO,
           floatRot: vol && fl.float ? vol/fl.float : null,
           mcap: q.marketCap ?? null,
@@ -433,15 +825,33 @@
         });
       }
 
+      // refresh pinned symbols that fell off the scan (Finnhub fallback keeps them live)
+      for (const sym of S.watch) {
+        if (enriched.some(d => d.symbol === sym)) continue;
+        const old = lastKnown[sym];
+        if (!old) continue;
+        const fq = await fhQuote(sym);
+        if (fq) Object.assign(old, {price: fq.price, change: fq.change, changePct: fq.changePct});
+        old.stale = true;
+      }
+
       data = enriched;
+      data.forEach(d => { lastKnown[d.symbol] = {...d, stale: false}; });
+
+      data.forEach(d => { d._new = !firstScan && !prevSymbols.has(d.symbol); });
+      runAlerts();
+      prevSymbols = new Set(data.map(d => d.symbol));
+      firstScan = false;
+
       render();
       renderFeed();
+      queueSparks([...new Set([...data.map(d => d.symbol), ...S.watch])]);
       $('lastScan').textContent = new Date().toLocaleTimeString();
       setStatus('live', 'Live');
     } catch (e) {
       console.error(e);
       if (!data.length) {
-        msgEl.innerHTML = '<b>Couldn\u2019t reach the free data proxies right now.</b><br>Free public proxies occasionally rate-limit. Wait ~30 seconds and hit \u201cScan now\u201d \u2014 the app rotates between three different proxies automatically.';
+        msgEl.innerHTML = '<b>Couldn\u2019t reach the free data proxies right now.</b><br>Free public proxies occasionally rate-limit. Wait ~30 seconds and hit \u201cScan\u201d \u2014 the app rotates between three proxies automatically. Tip: adding a free Finnhub key in ⚙ Settings makes pinned stocks immune to proxy hiccups.';
         msgEl.style.display = '';
         tbl.style.display = 'none';
       }
@@ -449,15 +859,11 @@
     }
   }
 
+  // ================= Filters =================
   function getFilters() {
     const v = id => { const x = parseFloat($(id).value); return isNaN(x) ? null : x; };
-    return {
-      minP: v('fMinPrice'), maxP: v('fMaxPrice'),
-      minR: v('fMinRvol'), minV: v('fMinVol'),
-      lowOnly: $('fLowFloat').checked,
-    };
+    return {minP: v('fMinPrice'), maxP: v('fMaxPrice'), minR: v('fMinRvol'), minV: v('fMinVol'), lowOnly: $('fLowFloat').checked};
   }
-
   function passes(d, f) {
     if (f.minP != null && (d.price == null || d.price < f.minP)) return false;
     if (f.maxP != null && (d.price == null || d.price > f.maxP)) return false;
@@ -466,47 +872,77 @@
     if (f.lowOnly && !(d.float != null && d.float < 20e6)) return false;
     return true;
   }
+  const PRESETS = {
+    classic: {minP: 1, maxP: 20, minR: 2, minV: '', low: true},
+    cheap:   {minP: '', maxP: 5, minR: 1.5, minV: '', low: false},
+    heavy:   {minP: '', maxP: '', minR: 3, minV: 1000000, low: false},
+  };
+  function applyPreset(name) {
+    const p = PRESETS[name];
+    if (!p) return;
+    $('fMinPrice').value = p.minP; $('fMaxPrice').value = p.maxP;
+    $('fMinRvol').value = p.minR; $('fMinVol').value = p.minV;
+    $('fLowFloat').checked = p.low;
+  }
+
+  // ================= Render =================
+  function haltRisk(d) { return (d.changePct || 0) > 25 && (d.relVol || 0) > 3; }
 
   function render() {
-    if (!data.length) return;
+    const all = [...data];
+    // pinned symbols that fell off the scan still show (dimmed)
+    for (const sym of S.watch) {
+      if (!all.some(d => d.symbol === sym) && lastKnown[sym]) all.push(lastKnown[sym]);
+    }
+    if (!all.length) return;
+
     const f = getFilters();
-    const visible = data.filter(d => passes(d, f));
+    const visible = all.filter(d => S.watch.has(d.symbol) || passes(d, f)); // pinned bypass filters
     $('fShown').textContent = visible.length;
-    $('fTotal').textContent = data.length;
+    $('fTotal').textContent = all.length;
     $('fLowWrap').classList.toggle('on', f.lowOnly);
 
-    const sorted = [...visible].sort((a,b) => {
-      const x = a[sortKey], y = b[sortKey];
+    const key = S.gap && sortKey === 'changePct' ? 'gapPct' : sortKey;
+    const sorted = [...visible].sort((a, b) => {
+      const pa = S.watch.has(a.symbol) ? 0 : 1, pb = S.watch.has(b.symbol) ? 0 : 1;
+      if (pa !== pb) return pa - pb; // watchlist first
+      const x = a[key], y = b[key];
       if (x == null) return 1; if (y == null) return -1;
       return (x < y ? -1 : x > y ? 1 : 0) * sortDir * -1;
     });
 
     if (!sorted.length) {
-      rowsEl.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:30px;color:var(--muted);font-family:var(--sans)">No spikers match these filters — loosen them or clear filters to see all ${data.length} results.</td></tr>`;
-      msgEl.style.display = 'none';
-      tbl.style.display = '';
-      updateStats(visible);
-      return;
+      rowsEl.innerHTML = `<tr><td colspan="14" style="text-align:center;padding:30px;color:var(--muted);font-family:var(--sans);cursor:default">No spikers match these filters — loosen them or hit Clear to see all ${all.length}.</td></tr>`;
+      msgEl.style.display = 'none'; tbl.style.display = '';
+      updateStats(visible); return;
     }
 
     rowsEl.innerHTML = sorted.map(d => {
-      const flash = prevPct[d.symbol] != null && d.changePct > prevPct[d.symbol] ? ' class="flash-up"' : '';
+      const flash = prevPct[d.symbol] != null && d.changePct > prevPct[d.symbol] && !d.stale ? ' flash-up' : '';
       prevPct[d.symbol] = d.changePct;
       const rotPct = d.floatRot != null ? Math.min(d.floatRot*100, 100) : 0;
-      return `<tr${flash}>
-        <td><span class="sym">${d.symbol}</span><span class="name">${d.name}</span></td>
+      const pinned = S.watch.has(d.symbol);
+      const c = chartCache[d.symbol];
+      const spark = c && c.closes.length > 1
+        ? `<svg class="spark" viewBox="0 0 92 28" preserveAspectRatio="none">${sparkSVG(c.closes, c.prevClose, 92, 28)}</svg>`
+        : '<div class="spark-wait">…</div>';
+      return `<tr class="${d.stale?'stale':''}${flash}" data-sym="${esc(d.symbol)}">
+        <td><button class="star ${pinned?'on':''}" data-pin="${esc(d.symbol)}" title="${pinned?'Unpin':'Pin to watchlist'}" aria-label="Pin ${esc(d.symbol)}">${pinned?'★':'☆'}</button></td>
+        <td><span class="sym">${esc(d.symbol)}</span>${d._new?'<span class="tag new">NEW</span>':''}${haltMap[d.symbol]?`<span class="tag halted" data-halt-cd="${esc(d.symbol)}" title="${esc(HALT_REASONS[haltMap[d.symbol].reason]||haltMap[d.symbol].reason)} — official Nasdaq halt feed">⛔ ${haltCountdownText(haltMap[d.symbol])}</span>`:(haltRisk(d)?'<span class="tag halt" title="Heuristic: big move + heavy RVOL — possible volatility halt candidate. Not official halt data.">⚠ HALT?</span>':'')}${d.stale?'<span class="tag stale-tag">off scan</span>':''}<span class="name">${esc(d.name)}</span></td>
+        <td data-spark="${esc(d.symbol)}">${spark}</td>
         <td>${fmt$(d.price)}</td>
         <td class="${d.changePct >= 0 ? 'up' : 'dn'}">${d.changePct == null ? '—' : (d.changePct>=0?'+':'') + d.changePct.toFixed(2) + '%'}</td>
-        <td class="${(d.change||0) >= 0 ? 'up' : 'dn'}">${d.change == null ? '—' : (d.change>=0?'+':'') + d.change.toFixed(2)}</td>
+        <td class="col-gap ${(d.gapPct||0)>=0?'up':'dn'}" style="${S.gap?'':'display:none'}">${d.gapPct == null ? '—' : (d.gapPct>=0?'+':'') + d.gapPct.toFixed(1) + '%'}</td>
+        <td class="col-opt ${(d.change||0) >= 0 ? 'up' : 'dn'}">${d.change == null ? '—' : (d.change>=0?'+':'') + d.change.toFixed(2)}</td>
         <td>${fmtNum(d.volume)}</td>
-        <td style="color:var(--muted)">${fmtNum(d.avgVol)}</td>
+        <td class="col-opt" style="color:var(--muted)">${fmtNum(d.avgVol)}</td>
         <td class="${d.relVol >= 2 ? 'up' : ''}">${d.relVol == null ? '—' : d.relVol.toFixed(1) + 'x'}</td>
         <td>${floatBadge(d.float, d.isSO)}</td>
         <td>${d.floatRot == null ? '—' : d.floatRot.toFixed(2) + 'x'}<div class="bar"><i style="width:${rotPct}%"></i></div></td>
-        <td style="color:var(--muted)">${fmtNum(d.mcap)}</td>
+        <td class="col-opt" style="color:var(--muted)">${fmtNum(d.mcap)}</td>
         <td class="news">${d.newsTitle
-          ? `<a href="${d.newsLink}" target="_blank" rel="noopener">${d.newsTitle}</a>
-             <div class="when ${d.newsTime && Date.now()-d.newsTime < 3600000 ? 'fresh' : ''}">${newsAge(d.newsTime)}</div>`
+          ? `<a href="${esc(d.newsLink)}" target="_blank" rel="noopener">${esc(d.newsTitle)}</a>
+             <div class="when ${d.newsTime && Date.now()-d.newsTime < 3600e3 ? 'fresh' : ''}">${newsAge(d.newsTime)}</div>`
           : '<span class="none">No recent headline</span>'}</td>
       </tr>`;
     }).join('');
@@ -516,60 +952,194 @@
     updateStats(visible);
   }
 
+  function floatBadge(f, isSO) {
+    if (f == null) return '<span class="badge b-na">N/A</span>';
+    const tag = isSO ? ' <span style="color:var(--muted);font-size:9px">SO</span>' : '';
+    if (f < 20e6)  return `<span class="badge b-low">${fmtNum(f)}</span>${tag}`;
+    if (f < 100e6) return `<span class="badge b-med">${fmtNum(f)}</span>${tag}`;
+    return `<span class="badge b-high">${fmtNum(f)}</span>${tag}`;
+  }
+
+  function updateStats(list) {
+    $('stCount').textContent = list.filter(d => !d.stale).length;
+    $('stLow').textContent = list.filter(d => d.float != null && d.float < 20e6).length;
+    const top = [...list].filter(d=>!d.stale).sort((a,b) => (b.changePct||0)-(a.changePct||0))[0];
+    $('stTop').textContent = top ? `${top.symbol} +${(top.changePct||0).toFixed(1)}%` : '—';
+    const live = list.filter(d=>!d.stale);
+    const avg = live.length ? live.reduce((s,d)=>s+(d.changePct||0),0)/live.length : 0;
+    $('stAvg').textContent = (avg>=0?'+':'') + avg.toFixed(1) + '%';
+    $('stWatch').textContent = S.watch.size;
+  }
+
+  // ================= Halts panel + live countdowns =================
+  function renderHalts() {
+    const box = $('haltsBox');
+    const tracked = new Set([...data.map(d => d.symbol), ...S.watch]);
+    // tracked symbols first, then other market halts, cap at 8
+    const active = Object.values(haltMap).sort((a, b) =>
+      (tracked.has(b.sym) - tracked.has(a.sym)) || (b.haltedAt?.getTime() || 0) - (a.haltedAt?.getTime() || 0)
+    );
+    if (!active.length) { box.style.display = 'none'; return; }
+    box.style.display = '';
+    $('haltCount').textContent = `(${active.length} market-wide)`;
+    $('haltRows').innerHTML = active.slice(0, 8).map(h => {
+      const m = haltMinutesLeft(h);
+      const cdClass = m == null ? 'hcd tbd' : 'hcd';
+      const inScan = tracked.has(h.sym);
+      return `<div class="halt-row">
+        <span class="hsym" data-hsym="${esc(h.sym)}" title="${inScan ? 'On your scan — click for details' : 'Not on your scan'}">${esc(h.sym)}${inScan ? ' ⭐' : ''}</span>
+        <span class="hreason">${esc(HALT_REASONS[h.reason] || h.reason || 'Halted')}</span>
+        <span class="${cdClass}" data-halt-cd="${esc(h.sym)}">${haltCountdownText(h)}</span>
+      </div>`;
+    }).join('');
+  }
+  $('haltRows')?.addEventListener?.('click', e => {
+    const el = e.target.closest('[data-hsym]');
+    if (el && (data.some(d => d.symbol === el.dataset.hsym) || lastKnown[el.dataset.hsym])) openDrawer(el.dataset.hsym);
+  });
+
+  // tick every 10s: update countdown texts + expire finished halts
+  setInterval(() => {
+    let changed = false;
+    for (const sym in haltMap) {
+      const h = haltMap[sym];
+      if (h.resumeTrade && h.resumeTrade.getTime() <= Date.now() - 30e3) { delete haltMap[sym]; changed = true; continue; }
+      document.querySelectorAll(`[data-halt-cd="${CSS.escape(sym)}"]`).forEach(el => {
+        el.textContent = (el.classList.contains('tag') ? '⛔ ' : '') + haltCountdownText(h);
+      });
+    }
+    if (changed) { renderHalts(); render(); }
+  }, 10e3);
+
+  // ================= News feed =================
   function renderFeed() {
     const feedEl = $('feed');
-    const syms = new Set(data.map(d => d.symbol));
-    const seen = new Set();
-    const items = [];
+    const syms = new Set([...data.map(d => d.symbol), ...S.watch]);
+    const seen = new Set(); const items = [];
     for (const sym of syms) {
       const c = newsCache[sym];
       if (!c || !c.items) continue;
       for (const n of c.items) {
         const key = (n.title || '').toLowerCase().slice(0, 80);
-        if (!key || seen.has(key)) continue; // dedupe cross-ticker duplicates
+        if (!key || seen.has(key)) continue;
         seen.add(key);
         items.push({...n, symbol: sym});
       }
     }
     items.sort((a, b) => (b.time || 0) - (a.time || 0));
     const top = items.slice(0, 40);
-
     if (!top.length) {
-      feedEl.innerHTML = '<div class="feed-empty">No headlines yet for the current spikers — they\u2019ll appear here as soon as the news endpoints respond.</div>';
+      feedEl.innerHTML = '<div class="feed-empty">No headlines yet for the current spikers — they\u2019ll appear here shortly.</div>';
       return;
     }
-
     feedEl.innerHTML = top.map(n => {
       const age = Date.now() - (n.time || 0);
-      const breaking = n.time && age < 15 * 60000;
-      const fresh = n.time && age < 3600000;
-      return `<a class="feed-item${breaking ? ' breaking' : ''}" href="${n.link}" target="_blank" rel="noopener">
+      const breaking = n.time && age < 15 * 60e3;
+      const fresh = n.time && age < 3600e3;
+      return `<a class="feed-item${breaking ? ' breaking' : ''}" href="${esc(n.link)}" target="_blank" rel="noopener">
         <div class="feed-top">
-          <span class="tick">${n.symbol}</span>
+          <span class="tick">${esc(n.symbol)}</span>
           <span class="feed-when${fresh ? ' fresh' : ''}">${breaking ? '🔥 ' : ''}${newsAge(n.time)}</span>
-          <span class="feed-pub">${n.pub}</span>
+          <span class="feed-pub">${esc(n.pub)}</span>
         </div>
-        <span class="feed-title">${n.title}</span>
+        <span class="feed-title">${esc(n.title)}</span>
       </a>`;
     }).join('');
   }
 
-  function updateStats(list) {
-    $('stCount').textContent = list.length;
-    $('stLow').textContent = list.filter(d => d.float != null && d.float < 20e6).length;
-    const top = [...list].sort((a,b) => (b.changePct||0)-(a.changePct||0))[0];
-    $('stTop').textContent = top ? `${top.symbol} +${(top.changePct||0).toFixed(1)}%` : '—';
-    const avg = list.length ? list.reduce((s,d)=>s+(d.changePct||0),0)/list.length : 0;
-    $('stAvg').textContent = (avg>=0?'+':'') + avg.toFixed(1) + '%';
+  // ================= Detail drawer =================
+  let drawerSym = null;
+  async function openDrawer(sym) {
+    drawerSym = sym;
+    const d = data.find(x => x.symbol === sym) || lastKnown[sym];
+    if (!d) return;
+    $('dSym').textContent = d.symbol;
+    $('dChg').textContent = d.changePct == null ? '' : (d.changePct>=0?'+':'') + d.changePct.toFixed(2) + '%';
+    $('dChg').className = (d.changePct||0) >= 0 ? 'up' : 'dn';
+    $('dStar').textContent = S.watch.has(sym) ? '★' : '☆';
+    $('dStar').classList.toggle('on', S.watch.has(sym));
+    const h = haltMap[sym];
+    $('dHalt').style.display = h ? '' : 'none';
+    if (h) {
+      const haltedAtTxt = h.haltedAt ? h.haltedAt.toLocaleTimeString() : '—';
+      const resumeTxt = h.resumeTrade ? h.resumeTrade.toLocaleTimeString() : 'not yet announced';
+      $('dHalt').innerHTML = `<b>⛔ TRADING HALTED</b> — ${esc(HALT_REASONS[h.reason] || h.reason || 'Halted')}<br>
+        Halted at ${haltedAtTxt} · Trading resumes: ${resumeTxt}
+        <span data-halt-cd="${esc(sym)}" style="color:var(--gold);font-weight:700;font-family:var(--mono)"> · ${haltCountdownText(h)}</span><br>
+        <span style="color:var(--muted)">You cannot buy or sell while halted. Resume times can extend — see the ? guide for what the evidence says about trading around halts.</span>`;
+    }
+    const cells = [
+      ['Price', fmt$(d.price)], ['Prev close', fmt$(d.prevClose)],
+      ['Open', fmt$(d.open)], ['Gap %', d.gapPct == null ? '—' : (d.gapPct>=0?'+':'')+d.gapPct.toFixed(1)+'%'],
+      ['Day range', d.dayLow != null && d.dayHigh != null ? `${d.dayLow.toFixed(2)}–${d.dayHigh.toFixed(2)}` : '—'],
+      ['Volume', fmtNum(d.volume)], ['RVOL', d.relVol == null ? '—' : d.relVol.toFixed(1)+'x'],
+      ['Float', (d.float!=null?fmtNum(d.float):'—') + (d.isSO?' (SO)':'')],
+      ['Rotation', d.floatRot == null ? '—' : d.floatRot.toFixed(2)+'x'],
+      ['Mkt cap', fmtNum(d.mcap)],
+    ];
+    $('dGrid').innerHTML = cells.map(([l,v]) => `<div class="d-cell"><div class="lbl">${l}</div><div class="val">${v}</div></div>`).join('');
+    const nc = newsCache[sym];
+    $('dNews').innerHTML = nc && nc.items.length
+      ? nc.items.map(n => `<a class="feed-item" href="${esc(n.link)}" target="_blank" rel="noopener">
+          <div class="feed-top"><span class="feed-when ${n.time && Date.now()-n.time<3600e3?'fresh':''}">${newsAge(n.time)}</span><span class="feed-pub">${esc(n.pub)}</span></div>
+          <span class="feed-title">${esc(n.title)}</span></a>`).join('')
+      : '<div class="feed-empty">No cached headlines for this ticker.</div>';
+    $('dChart').innerHTML = '';
+    $('drawer').classList.add('open'); $('drawerBg').classList.add('open');
+    const c = await getChart(sym);
+    if (drawerSym === sym) $('dChart').innerHTML = c.closes.length > 1 ? sparkSVG(c.closes, c.prevClose, 400, 150, true) : '';
+  }
+  function closeDrawer() { drawerSym = null; $('drawer').classList.remove('open'); $('drawerBg').classList.remove('open'); }
+
+  // ================= Watchlist =================
+  function togglePin(sym) {
+    if (S.watch.has(sym)) S.watch.delete(sym); else S.watch.add(sym);
+    saveHash(); applyUiState(); render();
+    if (drawerSym === sym) { $('dStar').textContent = S.watch.has(sym)?'★':'☆'; $('dStar').classList.toggle('on', S.watch.has(sym)); }
   }
 
+  // ================= CSV export =================
+  function exportCSV() {
+    const f = getFilters();
+    const all = [...data];
+    for (const sym of S.watch) if (!all.some(d=>d.symbol===sym) && lastKnown[sym]) all.push(lastKnown[sym]);
+    const rows = all.filter(d => S.watch.has(d.symbol) || passes(d, f));
+    const head = ['Symbol','Name','Price','ChangePct','GapPct','Volume','AvgVol3M','RVOL','Float','FloatIsSharesOutstanding','FloatRotation','MarketCap','LatestHeadline'];
+    const csv = [head.join(',')].concat(rows.map(d => [
+      d.symbol, `"${(d.name||'').replace(/"/g,'""')}"`, d.price ?? '', d.changePct?.toFixed(2) ?? '',
+      d.gapPct?.toFixed(2) ?? '', d.volume ?? '', d.avgVol ?? '', d.relVol?.toFixed(2) ?? '',
+      d.float ?? '', d.isSO ? 'yes' : 'no', d.floatRot?.toFixed(3) ?? '', d.mcap ?? '',
+      `"${(d.newsTitle||'').replace(/"/g,'""')}"`,
+    ].join(','))).join('\n');
+    const blob = new Blob([csv], {type:'text/csv'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `freefloat-scan-${new Date().toISOString().slice(0,16).replace(/[:T]/g,'-')}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast('⬇ Scan exported to CSV');
+  }
+
+  // ================= Status =================
   function setStatus(kind, txt) {
     $('statusDot').className = 'dot ' + (kind === 'live' ? 'live' : kind === 'err' ? 'err' : '');
     $('statusTxt').textContent = txt;
   }
 
-  // sorting
-  document.querySelectorAll('thead th').forEach(th => {
+  // ================= Events =================
+  rowsEl.addEventListener('click', e => {
+    const pin = e.target.closest('[data-pin]');
+    if (pin) { e.stopPropagation(); togglePin(pin.dataset.pin); return; }
+    if (e.target.closest('a')) return; // let news links work
+    const tr = e.target.closest('tr[data-sym]');
+    if (tr) openDrawer(tr.dataset.sym);
+  });
+  $('dClose').addEventListener('click', closeDrawer);
+  $('drawerBg').addEventListener('click', closeDrawer);
+  $('dStar').addEventListener('click', () => drawerSym && togglePin(drawerSym));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeDrawer(); closeModals(); } });
+
+  document.querySelectorAll('thead th[data-k]').forEach(th => {
     th.addEventListener('click', () => {
       const k = th.dataset.k;
       if (sortKey === k) sortDir *= -1; else { sortKey = k; sortDir = -1; }
@@ -581,26 +1151,69 @@
     });
   });
 
-  // filters — re-render instantly on change
   ['fMinPrice','fMaxPrice','fMinRvol','fMinVol'].forEach(id =>
-    $(id).addEventListener('input', render));
-  $('fLowFloat').addEventListener('change', render);
+    $(id).addEventListener('input', () => { $('fPreset').value = ''; saveHash(); render(); }));
+  $('fLowFloat').addEventListener('change', () => { $('fPreset').value = ''; saveHash(); render(); });
+  $('fGap').addEventListener('change', () => { S.gap = $('fGap').checked; applyUiState(); saveHash(); render(); });
+  $('fPreset').addEventListener('change', () => { applyPreset($('fPreset').value); saveHash(); render(); });
   $('fClear').addEventListener('click', () => {
     ['fMinPrice','fMaxPrice','fMinRvol','fMinVol'].forEach(id => $(id).value = '');
-    $('fLowFloat').checked = false;
-    render();
+    $('fLowFloat').checked = false; $('fPreset').value = '';
+    saveHash(); render();
   });
+
+  $('alertBtn').addEventListener('click', () => {
+    S.alerts = !S.alerts;
+    if (S.alerts) {
+      toast('🔔 Alerts on — you\u2019ll be pinged when new spikers appear or hot setups trigger. Configure sound &amp; notifications in ⚙.');
+      beep(660);
+    }
+    applyUiState(); saveHash();
+  });
+  $('csvBtn').addEventListener('click', exportCSV);
+
+  // settings
+  $('settingsBtn').addEventListener('click', () => $('settingsModal').classList.add('open'));
+  $('helpBtn').addEventListener('click', () => $('helpModal').classList.add('open'));
+  document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => $(b.dataset.close).classList.remove('open')));
+  document.querySelectorAll('.modal-bg').forEach(m => m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); }));
+  function closeModals(){ document.querySelectorAll('.modal-bg').forEach(m => m.classList.remove('open')); }
+
+  $('setSound').addEventListener('change', () => { S.sound = $('setSound').checked; if (S.sound) beep(660); saveHash(); });
+  $('setNotify').addEventListener('change', async () => {
+    if ($('setNotify').checked && 'Notification' in window) {
+      const perm = await Notification.requestPermission();
+      S.notify = perm === 'granted';
+      $('setNotify').checked = S.notify;
+      if (!S.notify) toast('Browser blocked notifications — check your site permissions.');
+    } else S.notify = false;
+    saveHash();
+  });
+  $('setRvol').addEventListener('change', () => { S.rvolAlert = parseFloat($('setRvol').value) || 3; hotAlerted.clear(); saveHash(); });
+  $('setCompact').addEventListener('change', () => { S.compact = $('setCompact').checked; applyUiState(); saveHash(); });
+  $('setFhKey').addEventListener('change', () => { S.fhKey = $('setFhKey').value.trim(); saveHash(); if (S.fhKey) toast('✅ Finnhub backup key saved — pinned stocks stay live even if proxies rate-limit.'); });
+  $('copyLink').addEventListener('click', async () => {
+    saveHash();
+    try { await navigator.clipboard.writeText(location.href); toast('🔗 Link copied — open it anywhere to restore this exact setup.'); }
+    catch (e) { toast('Couldn\u2019t access clipboard — copy the URL from the address bar.'); }
+  });
+
+  $('hintClose').addEventListener('click', () => $('hintBar').remove());
 
   // refresh loop
   function setLoop() {
     clearInterval(timer);
     const ms = +$('interval').value;
-    if (ms) timer = setInterval(scan, ms);
+    if (ms) timer = setInterval(scanWrapped, ms);
   }
   $('interval').addEventListener('change', setLoop);
-  $('refreshBtn').addEventListener('click', scan);
+  $('refreshBtn').addEventListener('click', scanWrapped);
 
-  scan();
+  async function scanWrapped() { await scan(); }
+
+  // ================= Boot =================
+  loadHash();
+  scanWrapped();
   setLoop();
 })();
 </script>
