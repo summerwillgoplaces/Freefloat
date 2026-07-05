@@ -28,6 +28,8 @@
     box-shadow:0 0 18px rgba(34,197,94,.35)}
   .brand h1{font-size:18px;font-weight:700;letter-spacing:.5px}
   .brand h1 span{color:var(--green)}
+  .brand h1 .by{color:var(--muted);font-size:11px;font-weight:400;letter-spacing:.5px;
+    font-style:italic;margin-left:4px;vertical-align:2px}
   .brand small{display:block;color:var(--muted);font-size:11px;letter-spacing:1.5px;text-transform:uppercase;font-weight:400}
   .controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   .pill{font-family:var(--mono);font-size:12px;padding:6px 12px;border-radius:999px;
@@ -104,6 +106,9 @@
   tbody tr.flash-up{animation:flashUp 1s}
   tbody tr.stale{opacity:.55}
   @keyframes flashUp{0%{background:var(--green-dim)}100%{background:transparent}}
+  @keyframes tickU{0%{color:var(--green);text-shadow:0 0 8px rgba(34,197,94,.6)}100%{color:inherit}}
+  @keyframes tickD{0%{color:var(--red);text-shadow:0 0 8px rgba(239,68,68,.6)}100%{color:inherit}}
+  .tick-up{animation:tickU 1s} .tick-dn{animation:tickD 1s}
   .star{cursor:pointer;font-size:15px;color:#3a4a68;background:none;border:none;padding:2px 4px}
   .star:hover{color:var(--gold)}
   .star.on{color:var(--gold)}
@@ -243,7 +248,7 @@
   <div class="brand">
     <div class="bolt">⚡</div>
     <div>
-      <h1>FREE<span>FLOAT</span></h1>
+      <h1>FREE<span>FLOAT</span> <span class="by">by Jhoee</span></h1>
       <small>Live momentum · low float spikers</small>
     </div>
   </div>
@@ -406,7 +411,7 @@
         <label class="switch"><input type="checkbox" id="setCompact"><i></i></label>
       </div>
       <div class="set-row">
-        <div class="info"><b>Finnhub API key (optional)</b><span>Free key from finnhub.io. Used as a backup data source when the public proxies rate-limit. Stored only in this page's URL on your device.</span></div>
+        <div class="info"><b>Finnhub API key (free) — unlocks real-time streaming</b><span>Get a free key at finnhub.io. With it, prices tick live via WebSocket (no delay, no polling) and pinned stocks survive proxy rate-limits. Without it, the scanner polls delayed data. Stored only in this page's URL on your device.</span></div>
         <input type="password" id="setFhKey" placeholder="paste key">
       </div>
       <div class="set-row">
@@ -561,6 +566,9 @@
   // ================= State (persisted in URL hash) =================
   let data = [], lastKnown = {}, prevPct = {}, prevSymbols = new Set(), firstScan = true;
   let sortKey = 'changePct', sortDir = -1, timer = null;
+  let ws = null, wsRetry = 0, wsToldUser = false;
+  const wsSubs = new Set(); let wsWanted = new Set();
+  const tickBuf = {};
   const S = { // settings
     watch: new Set(), alerts: false, sound: false, notify: false,
     rvolAlert: 3, compact: false, gap: false, fhKey: '',
@@ -740,6 +748,81 @@
     else cell.innerHTML = '<div class="spark-wait">n/a</div>';
   }
 
+  // ================= Real-time streaming (Finnhub WebSocket, free key) =================
+  const wsIsLive = () => ws && ws.readyState === 1;
+
+  function wsConnect() {
+    if (!S.fhKey) { wsClose(); return; }
+    if (ws && (ws.readyState === 0 || ws.readyState === 1)) return;
+    try {
+      ws = new WebSocket('wss://ws.finnhub.io?token=' + encodeURIComponent(S.fhKey));
+    } catch (e) { ws = null; return; }
+    ws.onopen = () => {
+      wsRetry = 0;
+      wsSubs.clear();
+      wsSync();
+      setStatus('live', 'Streaming live');
+      if (!wsToldUser) { wsToldUser = true; toast('⚡ Real-time stream connected — prices now tick live via your Finnhub key.'); }
+    };
+    ws.onmessage = e => {
+      let m; try { m = JSON.parse(e.data); } catch (err) { return; }
+      if (m.type !== 'trade' || !m.data) return;
+      for (const t of m.data) if (t.s && t.p) tickBuf[t.s] = t.p; // keep latest trade per symbol
+    };
+    ws.onclose = () => {
+      ws = null; wsSubs.clear();
+      if (S.fhKey) setTimeout(wsConnect, Math.min(30e3, 1000 * Math.pow(2, wsRetry++)));
+    };
+    ws.onerror = () => { try { ws.close(); } catch (e) {} };
+  }
+  function wsClose() {
+    if (ws) { ws.onclose = null; try { ws.close(); } catch (e) {} ws = null; }
+    wsSubs.clear();
+  }
+  function wsSync() { // align subscriptions with wanted set (free tier: keep under 50)
+    if (!wsIsLive()) return;
+    for (const s of wsWanted) if (!wsSubs.has(s)) { ws.send(JSON.stringify({type:'subscribe', symbol: s})); wsSubs.add(s); }
+    for (const s of [...wsSubs]) if (!wsWanted.has(s)) { ws.send(JSON.stringify({type:'unsubscribe', symbol: s})); wsSubs.delete(s); }
+  }
+  function wsSetWanted() {
+    wsWanted = new Set([...S.watch, ...data.map(d => d.symbol)].slice(0, 45));
+    wsConnect(); wsSync();
+  }
+
+  // flush buffered ticks to the DOM at most ~2.5x/sec — smooth but cheap
+  setInterval(() => {
+    const syms = Object.keys(tickBuf);
+    if (!syms.length) return;
+    for (const sym of syms) {
+      const p = tickBuf[sym]; delete tickBuf[sym];
+      const d = data.find(x => x.symbol === sym) || lastKnown[sym];
+      if (!d) continue;
+      const old = d.price;
+      d.price = p;
+      if (d.prevClose) { d.change = p - d.prevClose; d.changePct = (d.change / d.prevClose) * 100; }
+      if (lastKnown[sym]) Object.assign(lastKnown[sym], {price: d.price, change: d.change, changePct: d.changePct});
+      updateLiveCells(sym, d, old);
+    }
+  }, 400);
+
+  function updateLiveCells(sym, d, old) {
+    const dir = old != null && d.price !== old ? (d.price > old ? 'tick-up' : 'tick-dn') : '';
+    const px = document.querySelector(`[data-px="${CSS.escape(sym)}"]`);
+    if (px) {
+      px.textContent = fmt$(d.price);
+      if (dir) { px.classList.remove('tick-up','tick-dn'); void px.offsetWidth; px.classList.add(dir); }
+    }
+    const chg = document.querySelector(`[data-chg="${CSS.escape(sym)}"]`);
+    if (chg && d.changePct != null) {
+      chg.textContent = (d.changePct >= 0 ? '+' : '') + d.changePct.toFixed(2) + '%';
+      chg.className = d.changePct >= 0 ? 'up' : 'dn';
+    }
+    if (drawerSym === sym && d.changePct != null) {
+      $('dChg').textContent = (d.changePct >= 0 ? '+' : '') + d.changePct.toFixed(2) + '%';
+      $('dChg').className = (d.changePct >= 0 ? 'up' : 'dn');
+    }
+  }
+
   // ================= Alerts =================
   function beep(freq = 880) {
     if (!S.sound) return;
@@ -845,6 +928,8 @@
 
       render();
       renderFeed();
+      renderHalts();
+      wsSetWanted();
       queueSparks([...new Set([...data.map(d => d.symbol), ...S.watch])]);
       $('lastScan').textContent = new Date().toLocaleTimeString();
       setStatus('live', 'Live');
@@ -930,8 +1015,8 @@
         <td><button class="star ${pinned?'on':''}" data-pin="${esc(d.symbol)}" title="${pinned?'Unpin':'Pin to watchlist'}" aria-label="Pin ${esc(d.symbol)}">${pinned?'★':'☆'}</button></td>
         <td><span class="sym">${esc(d.symbol)}</span>${d._new?'<span class="tag new">NEW</span>':''}${haltMap[d.symbol]?`<span class="tag halted" data-halt-cd="${esc(d.symbol)}" title="${esc(HALT_REASONS[haltMap[d.symbol].reason]||haltMap[d.symbol].reason)} — official Nasdaq halt feed">⛔ ${haltCountdownText(haltMap[d.symbol])}</span>`:(haltRisk(d)?'<span class="tag halt" title="Heuristic: big move + heavy RVOL — possible volatility halt candidate. Not official halt data.">⚠ HALT?</span>':'')}${d.stale?'<span class="tag stale-tag">off scan</span>':''}<span class="name">${esc(d.name)}</span></td>
         <td data-spark="${esc(d.symbol)}">${spark}</td>
-        <td>${fmt$(d.price)}</td>
-        <td class="${d.changePct >= 0 ? 'up' : 'dn'}">${d.changePct == null ? '—' : (d.changePct>=0?'+':'') + d.changePct.toFixed(2) + '%'}</td>
+        <td data-px="${esc(d.symbol)}">${fmt$(d.price)}</td>
+        <td data-chg="${esc(d.symbol)}" class="${d.changePct >= 0 ? 'up' : 'dn'}">${d.changePct == null ? '—' : (d.changePct>=0?'+':'') + d.changePct.toFixed(2) + '%'}</td>
         <td class="col-gap ${(d.gapPct||0)>=0?'up':'dn'}" style="${S.gap?'':'display:none'}">${d.gapPct == null ? '—' : (d.gapPct>=0?'+':'') + d.gapPct.toFixed(1) + '%'}</td>
         <td class="col-opt ${(d.change||0) >= 0 ? 'up' : 'dn'}">${d.change == null ? '—' : (d.change>=0?'+':'') + d.change.toFixed(2)}</td>
         <td>${fmtNum(d.volume)}</td>
@@ -1123,7 +1208,7 @@
   // ================= Status =================
   function setStatus(kind, txt) {
     $('statusDot').className = 'dot ' + (kind === 'live' ? 'live' : kind === 'err' ? 'err' : '');
-    $('statusTxt').textContent = txt;
+    $('statusTxt').textContent = (kind === 'live' && wsIsLive() && txt === 'Live') ? '⚡ Streaming live' : txt;
   }
 
   // ================= Events =================
@@ -1191,11 +1276,21 @@
   });
   $('setRvol').addEventListener('change', () => { S.rvolAlert = parseFloat($('setRvol').value) || 3; hotAlerted.clear(); saveHash(); });
   $('setCompact').addEventListener('change', () => { S.compact = $('setCompact').checked; applyUiState(); saveHash(); });
-  $('setFhKey').addEventListener('change', () => { S.fhKey = $('setFhKey').value.trim(); saveHash(); if (S.fhKey) toast('✅ Finnhub backup key saved — pinned stocks stay live even if proxies rate-limit.'); });
+  $('setFhKey').addEventListener('change', () => {
+    S.fhKey = $('setFhKey').value.trim();
+    saveHash();
+    wsToldUser = false; wsClose();
+    if (S.fhKey) { wsSetWanted(); toast('✅ Finnhub key saved — connecting real-time price stream…'); }
+    else toast('Key removed — back to free polling mode.');
+  });
   $('copyLink').addEventListener('click', async () => {
     saveHash();
-    try { await navigator.clipboard.writeText(location.href); toast('🔗 Link copied — open it anywhere to restore this exact setup.'); }
-    catch (e) { toast('Couldn\u2019t access clipboard — copy the URL from the address bar.'); }
+    // never include the API key in a shared link
+    const p = new URLSearchParams(location.hash.slice(1));
+    p.delete('fh');
+    const shareUrl = location.origin + location.pathname + (p.toString() ? '#' + p.toString() : '');
+    try { await navigator.clipboard.writeText(shareUrl); toast('🔗 Link copied — restores your watchlist, filters and settings anywhere. Your API key is <b>not</b> included, on purpose.'); }
+    catch (e) { toast('Couldn\u2019t access clipboard — copy the URL from the address bar (remove the fh= part before sharing).'); }
   });
 
   $('hintClose').addEventListener('click', () => $('hintBar').remove());
@@ -1213,6 +1308,7 @@
 
   // ================= Boot =================
   loadHash();
+  wsSetWanted();
   scanWrapped();
   setLoop();
 })();
